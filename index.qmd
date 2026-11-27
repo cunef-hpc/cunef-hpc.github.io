@@ -87,25 +87,6 @@ A handful of names and terms recur throughout this guide. The table below is a q
 Use a plain login shell for editing files, installing small packages, moving data, and submitting jobs. Run real computation (models, simulations, notebooks, anything that uses serious CPU, RAM, or GPU time) through `sbatch` or `srun` so the scheduler can manage it. Do not launch heavy programs directly on the login shell.
 :::
 
-## Citing this guide {.unnumbered .unlisted}
-
-Naveiro, R. (2026). *CUNEF Server User Guide*. CUNEF Universidad. <https://cunef-hpc.github.io/>
-
-<details>
-<summary>BibTeX</summary>
-
-```bibtex
-@manual{naveiro2026cunefserver,
-  author       = {Naveiro, Roi},
-  title        = {{CUNEF} Server User Guide},
-  organization = {CUNEF Universidad},
-  year         = {2026},
-  url          = {https://cunef-hpc.github.io/}
-}
-```
-
-</details>
-
 ## About {.unnumbered .unlisted}
 
 This guide is written and maintained by [Roi Naveiro](https://roinaveiro.github.io/), Assistant Professor at CUNEF Universidad. Corrections and suggestions are welcome through the [issue tracker](https://github.com/cunef-hpc/cunef-hpc.github.io/issues).

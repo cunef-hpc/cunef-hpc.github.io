@@ -10,7 +10,7 @@ Each page is a Quarto Markdown file:
 
 | File | Sections of the PDF |
 |---|---|
-| `index.qmd` | Title page, contents, Before You Start (plus citation and about) |
+| `index.qmd` | Title page, contents, Before You Start (plus an about note) |
 | `getting-started.qmd` | 1.1–1.4 |
 | `server.qmd` | 1.5–1.7 |
 | `first-job.qmd` | 1.8–1.10 |
