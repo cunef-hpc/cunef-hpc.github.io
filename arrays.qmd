@@ -1,0 +1,95 @@
+---
+title: "Arrays and Pipelines"
+description: "Run one script over many inputs, and chain jobs that depend on each other."
+---
+
+## Job arrays {#arrays}
+
+A job array submits *one* script many times in a single `sbatch` call. You give a range with `--array` (for example `--array=0-99`) and Slurm launches one independent *task* per index, running as many at once as the machine has room for. Inside each task the variable `$SLURM_ARRAY_TASK_ID` holds that task's number, so the *same* script does different work depending on which task it is.
+
+**Why bother.** Suppose you need to run the same simulation for 100 random seeds. Without arrays you would either loop over the seeds inside one long job (no parallelism, and a single crash loses everything) or copy the script a hundred times by hand. With an array you write the script *once*, submit it *once*, and Slurm runs the 100 seeds as independent tasks in parallel, each with its own log and its own exit status. The pattern fits any "same code, many inputs" job: simulations, cross-validation folds, bootstrap replications, hyper-parameter sweeps, or one input file per task.
+
+In the script below, `%A` in the output filename is the array's overall job ID and `%a` is the task index, so every task writes to its own log. Here task `i` runs replication `i`:
+
+```{.bash filename="array-demo.slurm"}
+#!/usr/bin/env bash
+#SBATCH --job-name=array-demo
+#SBATCH --output=logs/%x-%A-%a.out
+#SBATCH --error=logs/%x-%A-%a.err
+#SBATCH --time=00:30:00
+#SBATCH --mem=2G
+#SBATCH --cpus-per-task=1
+#SBATCH --array=0-99
+
+set -euo pipefail
+mkdir -p logs results
+
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate my_project
+
+python scripts/simulation.py \
+  --replication "${SLURM_ARRAY_TASK_ID}" \
+  --output "results/result-${SLURM_ARRAY_TASK_ID}.csv"
+```
+
+Submit and inspect:
+
+```bash
+sbatch array-demo.slurm
+squeue -u $USER
+```
+
+Each running task counts towards your [usage limits](server.qmd#usage-limits), so Slurm starts only as many tasks at once as the limits allow and queues the rest. You can also limit concurrency yourself if each task is heavy:
+
+```bash
+# Runs tasks 0 to 999, but only 25 at the same time
+#SBATCH --array=0-999%25
+```
+
+## Arrays over a list of files {#file-arrays}
+
+Often the "different work" for each task is simply *a different input file*. The idea is to turn your files into a numbered list, then let each array task pick the file sitting at its own index.
+
+**Step 1: build the list.** Write one file path per line and count how many there are:
+
+```bash
+find data/raw -name "*.csv" | sort > filelist.txt
+wc -l filelist.txt          # suppose this prints 50
+```
+
+**Step 2: index into the list.** Set the array range to "number of files minus one" (50 files are indices 0–49, so `--array=0-49`). Inside the array script from the previous section, read the list into a Bash array with `mapfile` and use the task ID as the index:
+
+```bash
+#SBATCH --array=0-49
+
+mapfile -t FILES < filelist.txt          # FILES[0], FILES[1], ... (one per line)
+INPUT="${FILES[$SLURM_ARRAY_TASK_ID]}"   # task 0 takes FILES[0], task 1 -> FILES[1] ...
+
+python scripts/process_one.py --input "$INPUT" --output "results/${SLURM_ARRAY_TASK_ID}.csv"
+```
+
+So task 0 processes the first file, task 1 the second, and so on, all in parallel. If you add or remove files later, rebuild `filelist.txt` and update the `--array` range to match its new length.
+
+## Job dependencies {#dependencies}
+
+Some jobs must run *in order*: you cannot fit a model before the data is cleaned, and you cannot build the report before the model has run. A *dependency* tells Slurm "do not start this job until that other one has finished successfully". That lets you submit a whole pipeline in one go and walk away: the scheduler sequences the steps for you instead of you launching each one by hand.
+
+**Example: a three-step pipeline.** Preprocess the data, train a model on the result, then render a report. Each step is an ordinary job script (`preprocess.slurm`, `model.slurm`, `report.slurm`); the dependencies chain them together. The flag `--parsable` makes `sbatch` print just the numeric job ID, which we capture in a variable and feed to the next job's `--dependency`:
+
+```{.bash filename="submit.sh"}
+jid1=$(sbatch --parsable preprocess.slurm)
+jid2=$(sbatch --parsable --dependency=afterok:$jid1 model.slurm)
+jid3=$(sbatch --parsable --dependency=afterok:$jid2 report.slurm)
+echo "submitted chain: $jid1 -> $jid2 -> $jid3"
+```
+
+**How you run it.** Type those four lines in the login shell, or save them as `submit.sh` and run `bash submit.sh`. All three jobs are queued *immediately*: `model` sits in `squeue` as `PENDING` with reason `(Dependency)` until `preprocess` succeeds, then starts on its own; `report` waits for `model` the same way. Watch the chain with `squeue -u $USER`. Because we used `afterok`, a failure stops the chain: if `preprocess` fails, the later jobs never run, so you never get a report built from missing data.
+
+| Dependency | The job starts only … |
+|:----------|:-------------------------------|
+| `afterok:<jobid>` | after that job finished *successfully* (exit 0). The usual choice for pipelines. |
+| `afternotok:<jobid>` | after that job *failed*, which is handy for cleanup or an alert. |
+| `afterany:<jobid>` | after that job ends, whether it succeeded or failed. |
+| `after:<jobid>` | after that job has *started* (not necessarily finished). |
+
+You can also wait on several jobs at once, e.g. `--dependency=afterok:$jid1:$jid2`.

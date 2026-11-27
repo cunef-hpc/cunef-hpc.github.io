@@ -1,0 +1,122 @@
+---
+title: "Getting Started"
+description: "What Slurm is, how to log in, and how to move files to and from the server."
+---
+
+A handful of names and terms recur throughout this guide. The table below is a quick glossary.
+
+| Value | What it is |
+|:----------|:-------------------------------|
+| `naranjito.cunef.edu` | The hostname you connect to (by SSH, VS Code, or browser). |
+| `<username>` | Your CUNEF server user name. Replace it wherever it appears below. |
+| Partitions | `general` (batch jobs), `interactive`, `preemptible`: the Slurm queues you can submit to ([Partitions](server.qmd#partitions)). The older `short` and `long` still exist so that existing scripts keep working. |
+| Usage limits | How much of the server each user can hold, and for how long ([Usage limits](server.qmd#usage-limits)). |
+| Hardware | One shared node: 192 CPU cores, 256 GB RAM, and 4 NVIDIA L40S GPUs ([Hardware](server.qmd#hardware)). |
+| `$HOME` | Your personal directory for code, scripts, and Conda environments. |
+
+## What Slurm, `sbatch`, and `srun` are {#slurm}
+
+Because `naranjito` is shared by many people at once, you do not start heavy programs on it directly. Instead a scheduler called *Slurm* hands out the machine's cores, memory, and GPUs fairly. You write a short description of the work you want done (e.g. how long it should run and how many resources it needs) and submit it to Slurm, which queues the request and starts it as soon as room is free. You submit in one of two ways: `sbatch` runs a script unattended in the background (the usual choice), while `srun` opens a live interactive session on the resources it grants you. Almost everything in this guide is about writing and submitting those job descriptions.
+
+::: {.callout-note title="Rule of thumb"}
+Use a plain login shell for editing files, installing small packages, moving data, and submitting jobs. Run real computation (models, simulations, notebooks, anything that uses serious CPU, RAM, or GPU time) through `sbatch` or `srun` so the scheduler can manage it. Do not launch heavy programs directly on the login shell.
+:::
+
+## Log in {#log-in}
+
+There are (at least) three ways to reach `naranjito.cunef.edu`. All of them ask for your CUNEF server user name and password.
+
+::: {.callout-note title="Off campus? Connect to the VPN first"}
+`naranjito.cunef.edu` is reachable only from inside the CUNEF network. If you are working from home (outside the network, in general), start the CUNEF VPN before you connect (by any of the three methods below). CUNEF IT can provide the VPN client and setup instructions.
+:::
+
+### 1. A terminal with SSH
+
+**Windows 10 / 11.** You do not need to install anything. Open **Windows Terminal** or **PowerShell** from the Start menu and run:
+
+```bash
+ssh <username>@naranjito.cunef.edu
+```
+
+If `ssh` is somehow missing, add "OpenSSH Client" from *Settings → Apps → Optional Features*, or use a free client such as MobaXterm or PuTTY.
+
+**macOS and Linux.** Open the **Terminal** app and run exactly the same command:
+
+```bash
+ssh <username>@naranjito.cunef.edu
+```
+
+The first time you connect, your terminal asks whether to trust the host key. Check the fingerprint against the value provided by CUNEF IT before typing `yes`.
+
+### 2. Visual Studio Code (edit files as if they were local)
+
+VS Code can open a window that runs *on the server*, so you edit files, browse folders, and use an integrated terminal without copying anything back and forth.
+
+1. Install [VS Code](https://code.visualstudio.com/) and its **Remote - SSH** extension (publisher: Microsoft).
+2. Inside VS Code, press `F1`, type `Remote-SSH: Connect to Host`, and enter `<username>@naranjito.cunef.edu`.
+3. Enter your password. A new window opens connected to the server; use *File → Open Folder* to open your project (your password will probably be asked again).
+
+Editing and light terminal commands in VS Code are fine, but still launch real computation with `sbatch`/`srun` in a terminal outside of VS Code, never directly in the VS Code one.
+
+### 3. A web browser (nothing to install)
+
+If you cannot use a terminal or VS Code, open <https://naranjito.cunef.edu:9090/> in any browser and log in with your server user name and password. This is the server's web console (Cockpit); it gives you an in-browser **Terminal** and a file manager. Your browser may warn about the security certificate the first time; accept it only if the address matches the one above. This is the handiest option from a locked-down or borrowed computer.
+
+## Find your way around {#find-your-way}
+
+Once you are logged in you are at a shell prompt. A handful of commands cover almost everything you do day to day:
+
+| Command | Purpose |
+|:----------|:-------------------------------|
+| `pwd` | Print the directory you are currently in. |
+| `ls` | List files here. `ls -lh` shows sizes and dates; `ls -a` shows hidden files. |
+| `cd <dir>` | Change into a directory. `cd ..` goes up one level; `cd` alone returns to `$HOME`. |
+| `mkdir -p <dir>` | Create a directory (`-p` also creates any missing parent folders). |
+| `cp a b` | Copy file `a` to `b`. Add `-r` to copy a whole folder. |
+| `mv a b` | Move or rename a file or folder. |
+| `rm <file>` | Delete a file. `rm -r <dir>` deletes a folder (there is no undo). |
+| `cat <file>` | Print a whole file. Use `less <file>` to scroll (press `q` to quit). |
+| `nano <file>` | Open a simple text editor (`Ctrl+O` to save, `Ctrl+X` to exit). |
+
+A quick orientation check right after logging in:
+
+```bash
+hostname    # should print: naranjito
+whoami      # your username
+pwd         # your home directory, e.g. /home/<username>
+ls          # what is in it
+```
+
+**Change your password the first time you log in.** Run `passwd` and follow the prompts. It asks for your current password once and the new one twice; nothing appears on screen as you type, which is normal.
+
+```bash
+passwd
+```
+
+## Know where you are working {#where}
+
+Almost everything you own lives under your home directory, `$HOME` (typically `/home/<username>`): your code, scripts, and Conda environments. Keep it reasonably tidy and avoid filling it with huge temporary files. If your research group has shared storage, CUNEF IT will give you the path; otherwise keep your data in a folder under `$HOME`.
+
+Make a folder for the examples in this guide and move into it. The `~` is shorthand for your home directory, so `~/slurm-test` always means `/home/<username>/slurm-test`, no matter which directory you are currently in:
+
+```bash
+mkdir -p ~/slurm-test
+cd ~/slurm-test
+```
+
+## Copy files to and from the server {#copy-files}
+
+You move files between your own computer and the server with two standard tools: `scp` (*secure copy*: it copies a single file, or a whole folder with `-r`, over SSH) and `rsync` (synchronises folders, sending only what has changed). Run them from your laptop, not from inside the server.
+
+```bash
+# Laptop -> server
+scp my_script.py <username>@naranjito.cunef.edu:~/slurm-test/
+
+# Server -> laptop
+scp <username>@naranjito.cunef.edu:~/slurm-test/results.csv .
+
+# Better for folders or repeated transfers
+rsync -avP my_project/ <username>@naranjito.cunef.edu:~/my_project/
+```
+
+For large datasets, prefer `rsync -avP` because it can resume interrupted transfers and shows progress. (If you use VS Code Remote-SSH, you can also drag files straight into its file explorer.)

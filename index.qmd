@@ -1,0 +1,105 @@
+---
+pagetitle: "CUNEF Server User Guide"
+description: "A practical guide to naranjito, the compute server of CUNEF Universidad. Written by Roi Naveiro."
+title-block-style: none
+toc: false
+---
+
+::: {.home-header}
+[CUNEF Universidad]{.overline}
+
+# CUNEF Server User Guide {.home-title .unnumbered .unlisted}
+
+[Basic usage, Conda environments, jobs, GPUs, and reproducible workflows]{.home-subtitle}
+
+::: {.byline}
+By [Roi Naveiro](https://roinaveiro.github.io/){.author}, Assistant Professor, CUNEF Universidad\
+For CUNEF faculty and research staff · Revised 27 November 2026 · [PDF version](assets/cunef-slurm-user-guide.pdf)
+:::
+:::
+
+This guide explains how to use `naranjito`, the shared compute server of CUNEF Universidad. It intentionally starts with the minimum commands needed to run one job, then adds resource selection, environments, arrays, GPUs, and troubleshooting.
+
+::: {.specs}
+Host
+: `naranjito.cunef.edu`, reachable from the CUNEF network or through the VPN
+
+Processors
+: Two Intel Xeon 6740E, 192 cores (184 available to jobs)
+
+Memory
+: 256 GB (about 212 GB available to jobs)
+
+GPUs
+: Four NVIDIA L40S, 48 GB each
+
+Scheduler
+: Slurm, with the partitions `general`, `interactive`, and `preemptible`
+
+System
+: Ubuntu 24.04 LTS
+:::
+
+All of it is shared by everyone through the Slurm scheduler. You log in, prepare your code and environment, and then ask Slurm to run the work through `sbatch` or `srun`. Everywhere in this guide, replace `<username>` with your own CUNEF server user name.
+
+## Contents {.unnumbered .unlisted}
+
+::: {.contents-list}
+::: {.group-label}
+**Basics** The whole path from "I have an account" to running real work reliably.
+:::
+
+1. [Getting Started](getting-started.qmd)\
+   [What Slurm is, how to log in, and how to move files to and from the server.]{.desc}
+2. [The Server](server.qmd)\
+   [Hardware, partitions, and the usage limits that decide how much you can run, and for how long.]{.desc}
+3. [Your First Job](first-job.qmd)\
+   [A first batch job, then a complete Python project with Conda or uv.]{.desc}
+4. [Working with Jobs](working-with-jobs.qmd)\
+   [Choosing resources, monitoring and cancelling jobs, interactive sessions, and notebooks.]{.desc}
+
+::: {.group-label}
+**Advanced** For users who run many experiments, use GPUs, need chains of jobs, or want better efficiency.
+:::
+
+5. [Arrays and Pipelines](arrays.qmd)\
+   [Run one script over many inputs, and chain jobs that depend on each other.]{.desc}
+6. [GPUs: Scaling Up with JAX](gpus.qmd)\
+   [The same script on one core, many cores, one GPU, and two, and what limits multi-GPU speed-ups.]{.desc}
+7. [Multi-Core and Long Jobs](multicore.qmd)\
+   [Use several cores correctly, and make long jobs restartable.]{.desc}
+8. [Troubleshooting](troubleshooting.qmd)\
+   [What to check when a job misbehaves, and good cluster citizenship.]{.desc}
+
+::: {.group-label}
+**Reference**
+:::
+
+9. [Quick Reference](reference.qmd)\
+   [Commands, Slurm variables, and a script skeleton to copy.]{.desc}
+:::
+
+## Citing this guide {.unnumbered .unlisted}
+
+::: {.cite-as}
+Naveiro, R. (2026). *CUNEF Server User Guide*. CUNEF Universidad. <https://cunef-hpc.github.io/>
+:::
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@manual{naveiro2026cunefserver,
+  author       = {Naveiro, Roi},
+  title        = {{CUNEF} Server User Guide},
+  organization = {CUNEF Universidad},
+  year         = {2026},
+  url          = {https://cunef-hpc.github.io/}
+}
+```
+
+</details>
+
+## About {.unnumbered .unlisted}
+
+This guide is written and maintained by [Roi Naveiro](https://roinaveiro.github.io/), Assistant Professor at CUNEF Universidad. It follows the practical structure of established university HPC documentation while adapting every example to `naranjito`. Corrections and suggestions are welcome through the [issue tracker](https://github.com/cunef-hpc/cunef-hpc.github.io/issues).

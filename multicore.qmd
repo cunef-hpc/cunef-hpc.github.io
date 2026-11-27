@@ -1,0 +1,65 @@
+---
+title: "Multi-Core and Long Jobs"
+description: "Use several cores correctly, and make long jobs restartable."
+---
+
+## Multi-core jobs {#multicore}
+
+Many programs can use several CPU cores at once *within a single process*: NumPy and SciPy (through MKL or OpenBLAS), scikit-learn with `n_jobs`, PyTorch's CPU operations, or anything built on OpenMP. To use them well there are two separate things to get right, and people usually do only the first.
+
+**1. Reserve the cores.** Ask Slurm for them with `--cpus-per-task=N`. This is the right knob for one multi-threaded process. (Use `--ntasks` only for MPI; see below.)
+
+**2. Tell the libraries how many cores to use.** Left to themselves, math libraries detect *all 192 cores* on `naranjito` and try to use them, even though Slurm only handed your job a few. That oversubscription makes your job *slower*, not faster, and steals time from everyone else. The fix is to cap the thread count at exactly the cores Slurm gave you, which it exposes in `$SLURM_CPUS_PER_TASK`:
+
+```{.bash filename="multicore.slurm"}
+#!/usr/bin/env bash
+#SBATCH --job-name=multicore
+#SBATCH --output=logs/%x-%j.out
+#SBATCH --time=02:00:00
+#SBATCH --mem=16G
+#SBATCH --cpus-per-task=8
+
+set -euo pipefail
+mkdir -p logs
+
+# Pin every common threading library to the 8 cores we reserved
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}       # OpenMP
+export MKL_NUM_THREADS=${SLURM_CPUS_PER_TASK}       # Intel MKL (NumPy/SciPy)
+export OPENBLAS_NUM_THREADS=${SLURM_CPUS_PER_TASK}  # OpenBLAS
+
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate my_project
+
+python scripts/multicore_script.py
+```
+
+**MPI: many cooperating processes.** A different class of program runs as several processes that talk to each other over MPI. Those use `--ntasks` (one task per process) instead of `--cpus-per-task`, and a launcher starts them. Check which MPI module exists here first:
+
+```bash
+module avail mpi
+module load openmpi
+mpirun -np ${SLURM_NTASKS} ./my_mpi_program
+```
+
+## Checkpoint long jobs {#checkpoint}
+
+Long jobs should save intermediate state periodically. This matters most in `preemptible`, where a job can be killed and restarted from the beginning at any time. Do this in your application when possible:
+
+- Save model checkpoints every fixed number of epochs or iterations.
+- Write partial simulation results every few replications.
+- Make output filenames include the seed, fold, or array task ID.
+- Make scripts restartable: skip outputs that already exist unless `--overwrite` is supplied.
+
+Example pattern:
+
+```python
+from pathlib import Path
+import pandas as pd
+
+out = Path("results/replication-17.csv")
+if out.exists():
+    print(f"{out} already exists; skipping")
+else:
+    result = run_expensive_calculation()
+    pd.DataFrame(result).to_csv(out, index=False)
+```

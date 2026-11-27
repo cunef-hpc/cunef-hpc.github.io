@@ -1,0 +1,366 @@
+/*-- scss:defaults --*/
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap");
+
+// Palette: the CUNEF navy and orange of the PDF guide, on warm paper
+$cunef-navy:   #151F6C;
+$cunef-orange: #FF5700;
+$paper:        #FBFAF7;
+$ink:          #24242C;
+$muted:        #6F6B63;
+$hairline:     #E3DED3;
+$wash:         #F3F0E9;
+
+$primary:          $cunef-navy;
+$body-bg:          $paper;
+$body-color:       $ink;
+$link-color:       $cunef-navy;
+$link-hover-color: #C24400;
+
+$font-family-sans-serif: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+$font-family-base:       "Source Serif 4", Georgia, "Times New Roman", serif;
+$font-family-monospace:  "IBM Plex Mono", SFMono-Regular, Menlo, Consolas, monospace;
+$headings-font-family:   "Source Serif 4", Georgia, serif;
+$headings-font-weight:   600;
+$headings-color:         $cunef-navy;
+$font-size-root:         17px;
+$line-height-base:       1.62;
+
+$code-color:            $ink;
+$code-bg:               $wash;
+$code-block-bg:         $wash;
+$code-block-border-left: false;
+
+$border-color:       $hairline;
+$table-border-color: $hairline;
+
+$sidebar-bg: $paper;
+$sidebar-fg: $ink;
+$sidebar-hl: $cunef-orange;
+$footer-bg:  $paper;
+$footer-fg:  $muted;
+
+$callout-border-width:    2px;
+$callout-color-note:      $cunef-navy;
+$callout-color-important: $cunef-orange;
+
+$toc-font-size: 0.8rem;
+
+/*-- scss:rules --*/
+
+body {
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: rgba($cunef-orange, 0.18); }
+
+// Interface text in the sans; reading text stays in the serif
+#quarto-sidebar, #TOC, #quarto-margin-sidebar, .nav-footer, .page-navigation,
+.callout-title-container, table, .quarto-title-meta, #quarto-search,
+.code-with-filename-file, .sidebar-byline, .overline, .byline, .group-label {
+  font-family: $font-family-sans-serif;
+}
+
+// ---------- Title block ----------
+header#title-block-header:not(.quarto-title-block),
+header#title-block-header:empty { display: none; }
+#title-block-header.quarto-title-block {
+  margin-bottom: 2.2rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid $cunef-orange;
+}
+h1.title {
+  font-size: 2.3rem;
+  letter-spacing: -0.012em;
+  line-height: 1.15;
+}
+.quarto-title .description p,
+.quarto-title p.subtitle {
+  font-style: italic;
+  color: $muted;
+  font-size: 1.1rem;
+  margin: 0.45rem 0 0;
+}
+
+// ---------- Headings ----------
+h2 {
+  font-size: 1.5rem;
+  margin-top: 2.6rem;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0;
+  border-bottom: none;
+  letter-spacing: -0.005em;
+}
+h3 {
+  font-family: $font-family-sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin-top: 2rem;
+  margin-bottom: 0.6rem;
+}
+.anchorjs-link { color: $hairline !important; }
+
+// ---------- Links in the text ----------
+main a:not(.nav-link):not(.anchorjs-link):not(.sidebar-link):not(.pagination-link) {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  text-decoration-color: rgba($cunef-orange, 0.5);
+}
+main a:hover { text-decoration-color: currentColor; }
+
+// ---------- Code ----------
+:not(pre) > code {
+  font-size: 0.84em;
+  padding: 0.08em 0.32em;
+  border-radius: 3px;
+  background: $wash;
+  color: $ink;
+}
+@media (max-width: 575.98px) {
+  :not(pre) > code { overflow-wrap: break-word; }
+  td :not(pre) > code { overflow-wrap: anywhere; }
+}
+// Command output: no fill, a hairline on the left, tucked under its command
+main pre.text {
+  background: transparent;
+  border: none;
+  border-left: 2px solid $hairline;
+  border-radius: 0;
+  padding: 0.15rem 0 0.15rem 1rem;
+  margin: -0.3rem 0 1.4rem;
+  color: #55524B;
+}
+main pre.text code { font-size: 0.76rem; }
+div.sourceCode, pre.sourceCode {
+  background: $wash;
+  border: none;
+  border-radius: 4px;
+}
+pre code, div.sourceCode pre code {
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+div.sourceCode { margin: 1rem 0 1.4rem; }
+.code-with-filename .code-with-filename-file {
+  background: darken($wash, 3%);
+  border: none;
+  border-radius: 4px 4px 0 0;
+  padding: 0.3rem 0.8rem;
+}
+.code-with-filename .code-with-filename-file pre strong {
+  font-family: $font-family-monospace;
+  font-weight: 500;
+  font-size: 0.74rem;
+  color: $muted;
+}
+.code-with-filename div.sourceCode { margin-top: 0; border-radius: 0 0 4px 4px; }
+.code-copy-button { opacity: 0.6; }
+
+// ---------- Tables: booktabs, as in the PDF ----------
+.table, table {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin: 1.3rem 0 1.8rem;
+  border-top: 1.25px solid $ink;
+  border-bottom: 1.25px solid $ink;
+  --bs-table-bg: transparent;
+  --bs-table-striped-bg: transparent;
+}
+.table > :not(caption) > * > * {
+  border-bottom-width: 0;
+  padding: 0.42rem 0.75rem 0.42rem 0;
+  box-shadow: none;
+}
+.table > thead > tr > th {
+  border-bottom: 0.75px solid $ink;
+  font-weight: 600;
+  color: $ink;
+  vertical-align: bottom;
+}
+.table > tbody > tr > td:first-child {
+  font-weight: 600;
+  color: $cunef-navy;
+}
+.table > tbody > tr > td:first-child code { font-weight: 500; }
+.table > tbody > tr:first-child > td { padding-top: 0.6rem; }
+.table > tbody > tr:last-child > td { padding-bottom: 0.6rem; }
+
+// ---------- Callouts: a rule and a quiet tint, no icons ----------
+div.callout {
+  border: none !important;
+  border-left: 2px solid !important;
+  border-radius: 0 !important;
+  margin: 1.6rem 0;
+  box-shadow: none;
+}
+div.callout.callout-style-simple { padding: 0.15rem 1.1rem 0.15rem 1rem; }
+div.callout-note      { border-left-color: $cunef-navy !important;   background: #EEEFF5; }
+div.callout-important { border-left-color: $cunef-orange !important; background: #F6F0E8; }
+.callout.callout-style-simple > div.callout-header { opacity: 1; }
+div.callout .callout-title-container {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: $cunef-navy !important;
+}
+div.callout .callout-body-container > :last-child { margin-bottom: 0.4rem; }
+div.callout div.sourceCode { background: rgba(255, 255, 255, 0.6); }
+
+// ---------- Sidebar ----------
+#quarto-sidebar { border-right: 1px solid $hairline; }
+// Put the byline under the site title, not above it
+@media (min-width: 992px) {
+  #quarto-sidebar.docked { display: flex; flex-direction: column; }
+  #quarto-sidebar > .sidebar-header { order: 1; }
+  #quarto-sidebar > .quarto-sidebar-header { order: 2; }
+  #quarto-sidebar > :not(.sidebar-header):not(.quarto-sidebar-header) { order: 3; }
+}
+.quarto-sidebar-header .sidebar-header-item p { margin: 0.15rem 0 0; }
+.sidebar-title {
+  font-family: $headings-font-family;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: $cunef-navy;
+}
+.sidebar-header-item .sidebar-byline,
+a.sidebar-byline {
+  display: block;
+  margin-top: -0.35rem;
+  font-size: 0.8rem;
+  color: $muted;
+  text-decoration: none;
+}
+a.sidebar-byline:hover { color: $cunef-orange; }
+.sidebar-navigation .sidebar-item { font-size: 0.88rem; }
+.sidebar-navigation .sidebar-link { color: $ink; }
+.sidebar-navigation .sidebar-link.active { color: $cunef-orange; font-weight: 500; }
+.sidebar-navigation .sidebar-item-section > .sidebar-item-container .sidebar-item-text {
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: $muted;
+}
+.sidebar-navigation .sidebar-item-section { margin-top: 0.7rem; }
+
+// ---------- Right-hand contents ----------
+#toc-title {
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: $muted;
+}
+#TOC .nav-link { color: $muted; }
+#TOC .nav-link.active { color: $cunef-navy; border-left-color: $cunef-orange; }
+
+// ---------- Footer and page navigation ----------
+.nav-footer {
+  border-top: 1px solid $hairline;
+  font-size: 0.8rem;
+}
+.nav-footer a { color: $muted; text-decoration: none; }
+.nav-footer a:hover { color: $cunef-orange; }
+.page-navigation { border-top: 1px solid $hairline; padding-top: 0.9rem; font-size: 0.9rem; }
+
+// ---------- Home page ----------
+.home-header {
+  margin: 0.5rem 0 2.2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid $cunef-orange;
+}
+.overline {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: $cunef-orange;
+}
+h1.home-title {
+  font-size: clamp(2.3rem, 5.2vw, 3.3rem);
+  line-height: 1.06;
+  letter-spacing: -0.022em;
+  margin: 0.7rem 0 0.7rem;
+}
+.home-subtitle {
+  display: block;
+  font-size: 1.2rem;
+  font-style: italic;
+  color: $muted;
+}
+.byline {
+  margin-top: 1.5rem;
+  font-size: 0.88rem;
+  color: $muted;
+  line-height: 1.7;
+}
+.byline p { margin: 0; }
+.byline a.author {
+  color: $cunef-navy;
+  font-weight: 600;
+  text-decoration: none !important;
+}
+
+.specs dl {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.4rem 1.2rem;
+  margin: 1.6rem 0 1.8rem;
+  padding: 1rem 0;
+  border-top: 1px solid $hairline;
+  border-bottom: 1px solid $hairline;
+}
+.specs dt {
+  font-family: $font-family-sans-serif;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: $cunef-navy;
+  padding-top: 0.2rem;
+}
+.specs dd { margin: 0; }
+@media (max-width: 575.98px) {
+  .specs dl { grid-template-columns: 1fr; gap: 0 0; }
+  .specs dd { margin-bottom: 0.55rem; }
+}
+
+.contents-list ol { padding-left: 1.6rem; margin-bottom: 1.6rem; }
+.contents-list li { margin-bottom: 0.75rem; padding-left: 0.2rem; }
+.contents-list li::marker {
+  font-family: $font-family-sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: $cunef-orange;
+}
+.contents-list li > p > a:first-child,
+.contents-list li > a:first-child {
+  font-size: 1.06rem;
+  font-weight: 600;
+  text-decoration: none !important;
+}
+.contents-list .desc { display: block; color: $muted; font-size: 0.95rem; }
+.group-label {
+  margin-top: 1.8rem;
+  font-size: 0.88rem;
+  color: $muted;
+}
+.group-label strong {
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.7rem;
+  color: $cunef-navy;
+  margin-right: 0.35rem;
+}
+.cite-as {
+  padding-left: 1.2rem;
+  text-indent: -1.2rem;
+}
+details summary {
+  font-family: $font-family-sans-serif;
+  font-size: 0.85rem;
+  color: $muted;
+  cursor: pointer;
+}

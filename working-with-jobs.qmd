@@ -1,0 +1,150 @@
+---
+title: "Working with Jobs"
+description: "Choosing resources, monitoring and cancelling jobs, interactive sessions, and notebooks."
+---
+
+## Choose reasonable resources {#resources}
+
+Slurm schedules jobs based on requested resources. If you ask for too little, your job can fail. If you ask for much more than you use, your job may wait longer and block other users.
+
+| Directive | Practical guidance |
+|:----------|:-------------------------------|
+| `--time` | Estimate runtime and add a buffer. Shorter jobs usually start sooner, and the time you request is what counts against your usage limits ([Usage limits](server.qmd#usage-limits)). |
+| `--mem` | Total memory for the job. Start with `2G`, `4G`, `8G`, etc. and inspect actual use. |
+| `--cpus-per-task` | Use for one program that can use multiple threads on one node. |
+| `--ntasks` | Use for MPI or multiple coordinated processes. Most Python/R scripts do not need this. |
+| `--partition` | Queue/resource class. Discover available partitions with `sinfo`. |
+| `--gres=gpu:1` | Request one GPU; `naranjito` has 4, available from every partition. In `general`, each user can hold at most 2 at once (1 GPU for up to 24 hours, or 2 for up to 12); `interactive` and `long` allow 1, and `preemptible` up to 4 ([Usage limits](server.qmd#usage-limits)). |
+
+::: {.callout-note title="The ceilings on one node"}
+Everything runs on a single node, of which Slurm can schedule **184 CPU cores**, about **212 GB** of RAM, and **4 GPUs**, and you share all of it with other users. Outside `preemptible`, you can hold at most **92 cores, 106 GB, and 2 GPUs** at once, and the more you hold, the shorter your jobs must be ([Usage limits](server.qmd#usage-limits)). Ask for a sensible fraction, not the whole machine!
+:::
+
+A few concrete headers for common situations:
+
+```bash
+# Single-threaded script, little memory, finishes in half an hour
+#SBATCH --partition=general
+#SBATCH --time=00:30:00
+#SBATCH --mem=4G
+#SBATCH --cpus-per-task=1
+
+# Multi-threaded job (e.g. scikit-learn n_jobs=16) that runs for six hours
+#SBATCH --partition=general
+#SBATCH --time=06:00:00
+#SBATCH --mem=32G
+#SBATCH --cpus-per-task=16
+
+# Memory-hungry job on only a few cores
+#SBATCH --partition=general
+#SBATCH --time=02:00:00
+#SBATCH --mem=96G
+#SBATCH --cpus-per-task=4
+```
+
+How do you know whether you guessed right? After a job finishes, run `seff <jobid>` (or `sacct`, see [Monitor jobs](#monitor)). If it reports that you used, say, 3% of the memory you reserved, ask for less next time so your jobs start sooner and leave room for everyone else.
+
+::: {.callout-important title="Do not request cores unless your code uses them"}
+Many ordinary Python and R scripts run on one CPU core even if you request eight. Only request multiple cores when your code uses multiprocessing, multithreaded numeric libraries, OpenMP, PyTorch data loaders, R parallel backends, Stan chains, or similar tools.
+:::
+
+## A good default Python job template {#template}
+
+```{.bash filename="my-analysis.slurm"}
+#!/usr/bin/env bash
+#SBATCH --job-name=my-analysis
+#SBATCH --output=logs/%x-%j.out
+#SBATCH --error=logs/%x-%j.err
+#SBATCH --time=02:00:00
+#SBATCH --mem=8G
+#SBATCH --cpus-per-task=1
+#SBATCH --partition=general
+
+set -euo pipefail
+mkdir -p logs
+
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate my_project
+
+python scripts/run_analysis.py --input data/input.csv --output results/output.csv
+```
+
+This is the pattern to copy for real work. It uses the same skeleton as [the walkthrough](first-job.qmd#python-from-scratch) and adds a few habits worth keeping:
+
+- `--output=logs/%x-%j.out` and `--error=logs/%x-%j.err` send normal output and errors to separate files under `logs/`; `%x` is the job name and `%j` the job ID, so runs never overwrite each other.
+- `mkdir -p logs` creates that folder first; Slurm does not make it for you, and a missing folder means the output is simply lost.
+- Passing the input and output paths as arguments to `python` keeps the same script reusable on different data.
+
+Submit:
+
+```bash
+sbatch my-analysis.slurm
+```
+
+## Monitor jobs {#monitor}
+
+While queued or running:
+
+```bash
+squeue -u $USER
+squeue -j <jobid>
+scontrol show job <jobid>
+```
+
+After completion:
+
+```bash
+sacct -j <jobid> --format=JobID,JobName,State,Elapsed,MaxRSS,ReqMem,AllocCPUS
+seff <jobid>
+```
+
+Both `seff` and `sacct` are available on `naranjito` (job accounting is enabled through `slurmdbd`), so use whichever you prefer.
+
+## Cancel a job {#cancel}
+
+Find the job ID and cancel it:
+
+```bash
+squeue -u $USER
+scancel <jobid>
+```
+
+Cancel all of your jobs only when you really mean it:
+
+```bash
+scancel -u $USER
+```
+
+## Use an interactive session {#interactive}
+
+Interactive sessions are useful for testing commands, installing packages, trying a notebook, or debugging. They still run on compute resources, so request only what you need.
+
+```bash
+srun --partition=interactive --time=01:00:00 --mem=4G --cpus-per-task=2 --pty bash -i
+```
+
+This drops you into a shell running under the scheduler with the resources you asked for. Leave it with:
+
+```bash
+exit
+```
+
+## Bonus: run notebooks inside VS Code {#notebooks}
+
+You can edit and run Jupyter notebooks directly in the VS Code editor on the server, with the output shown inline. No browser and no SSH tunnel are involved.
+
+1. Connect VS Code to the server with **Remote - SSH** ([Log in](getting-started.qmd#log-in)) and open your project folder.
+2. Once per environment, install the Jupyter kernel package:
+
+    ```bash
+    conda activate my_project
+    python -m pip install ipykernel
+    ```
+
+3. Open or create a `.ipynb` file in VS Code. Accept the prompt to install the Microsoft **Python** and **Jupyter** extensions if you do not have them yet.
+4. Click **Select Kernel** at the top right of the notebook, choose **Python Environments**, and pick your `my_project` environment.
+5. Run a cell with `Shift+Enter`. Its output appears directly beneath it.
+
+::: {.callout-note title="Keep heavy work off the login shell"}
+A kernel selected this way runs on the shared login shell, which is fine for editing, plotting, and light analysis. If a notebook needs serious CPU, RAM, or a GPU, move that work into a batch job with `sbatch`, or run it from an interactive `srun` session instead.
+:::

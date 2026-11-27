@@ -1,0 +1,59 @@
+project:
+  type: website
+  output-dir: _site
+  resources:
+    - assets/cunef-slurm-user-guide.pdf
+
+website:
+  title: "CUNEF Server Guide"
+  description: "A practical guide to naranjito, the compute server of CUNEF Universidad: logging in, environments, Slurm jobs, GPUs, and troubleshooting. Written by Roi Naveiro."
+  site-url: "https://cunef-hpc.github.io"
+  repo-url: "https://github.com/cunef-hpc/cunef-hpc.github.io"
+  repo-actions: [issue]
+  favicon: favicon.svg
+  page-navigation: true
+  open-graph: true
+  search:
+    location: sidebar
+    type: textbox
+  sidebar:
+    style: docked
+    collapse-level: 2
+    header: "[by Roi Naveiro](https://roinaveiro.github.io/){.sidebar-byline}"
+    contents:
+      - text: "Overview"
+        href: index.qmd
+      - section: "Basics"
+        contents:
+          - getting-started.qmd
+          - server.qmd
+          - first-job.qmd
+          - working-with-jobs.qmd
+      - section: "Advanced"
+        contents:
+          - arrays.qmd
+          - gpus.qmd
+          - multicore.qmd
+          - troubleshooting.qmd
+      - section: "Reference"
+        contents:
+          - reference.qmd
+  page-footer:
+    left: "Written and maintained by [Roi Naveiro](https://roinaveiro.github.io/), CUNEF Universidad"
+    right: "[PDF version](assets/cunef-slurm-user-guide.pdf)"
+
+format:
+  html:
+    theme: [default, theme.scss]
+    highlight-style: naranjito.theme
+    lang: en-GB
+    author-meta: "Roi Naveiro"
+    toc: true
+    toc-depth: 2
+    toc-title: "On this page"
+    code-copy: hover
+    callout-appearance: simple
+    callout-icon: false
+    anchor-sections: true
+    smooth-scroll: false
+    link-external-icon: false

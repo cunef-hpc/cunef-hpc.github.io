@@ -1,0 +1,215 @@
+---
+title: "GPUs: Scaling Up with JAX"
+description: "The same script on one core, many cores, one GPU, and two, and what limits multi-GPU speed-ups."
+---
+
+[JAX](https://docs.jax.dev/) is a Python library for high-performance numerical computing. You write plain NumPy-style code, and JAX compiles it (with the XLA compiler) and runs it on whatever hardware it finds, whether that is a CPU, one GPU, or several, without you changing a line. That makes it a neat way to see what `naranjito` can do. The example below multiplies large matrices and reports throughput in *TFLOP/s* (trillions of floating-point operations per second), and we run the *same script* on one CPU core, on many cores, on one L40S GPU, and on two at once. The matrix multiply is not really the point; the scaling is. The real question is how much faster the same work gets as we give it more of the machine. (PyTorch and TensorFlow follow the same Slurm pattern: a Conda environment plus `--gres=gpu:N`.)
+
+::: {.callout-important}
+## The GPUs on `naranjito`
+
+The node has **four NVIDIA L40S** GPUs (48 GB each), exposed to Slurm as the generic resource `gpu` and reachable from *every* partition. Add `--gres=gpu:N` to any job (`N` up to 2, or up to 4 in `preemptible`; see [Usage limits](server.qmd#usage-limits)). The default `sinfo` output does not list GPUs; see them with:
+
+```bash
+sinfo -o "%P %G"                 # shows gpu:4 on each partition
+scontrol show node naranjito | grep -i gres
+```
+
+```text
+PARTITION     GRES
+interactive*  gpu:4
+general       gpu:4
+short         gpu:4
+long          gpu:4
+preemptible   gpu:4
+```
+
+All four GPUs live in one node, but outside `preemptible` a user can hold at most two at once, and two only for up to 12 hours. A job in `preemptible` can use all four. The two CPU-only examples below need no GPU and run unchanged.
+:::
+
+## Environments {#environments}
+
+```bash
+# CPU-only JAX
+conda create --name jax_cpu python=3.11
+conda activate jax_cpu
+python -m pip install -U "jax[cpu]"
+
+# GPU JAX (CUDA 12 wheels bundle CUDA; no system CUDA module needed)
+conda create --name jax_gpu python=3.11
+conda activate jax_gpu
+python -m pip install -U "jax[cuda12]"
+```
+
+## The benchmark scripts {#scripts}
+
+Save this as `matmul.py`. It multiplies two `n` × `n` matrices (we use *n* = 20000) ten times and reports the throughput in TFLOP/s. JAX runs it on whatever device it finds, so this one file serves the single-CPU, many-CPU, and single-GPU runs:
+
+```{.python filename="matmul.py"}
+import os, time
+import jax, jax.numpy as jnp
+from jax import random
+
+n = int(os.environ.get("N", "20000"))
+print("JAX devices:", jax.devices())
+
+a = random.normal(random.PRNGKey(0), (n, n), dtype=jnp.float32)
+b = random.normal(random.PRNGKey(1), (n, n), dtype=jnp.float32)
+
+jnp.dot(a, b).block_until_ready()          # warm-up (triggers compilation)
+t0 = time.time()
+for _ in range(10):
+    c = jnp.dot(a, b).block_until_ready()
+dt = time.time() - t0
+
+print(f"n={n}  time={dt:.3f}s  {2 * n**3 * 10 / dt / 1e12:.2f} TFLOP/s")
+```
+
+To make *several* GPUs cooperate on *one* large problem, save `matmul_sharded.py`. It splits a single big matrix by rows across every visible GPU (and keeps a full copy of the second matrix on each), so each GPU multiplies its own row-block. The *same* script automatically uses however many GPUs Slurm gives it. Run it with 1, then 2 GPUs and watch the same product get faster:
+
+```{.python filename="matmul_sharded.py"}
+import os, time
+import jax, jax.numpy as jnp
+from jax.sharding import Mesh, NamedSharding, PartitionSpec as P
+
+gpus = jax.devices("gpu")
+n = int(os.environ.get("N", "20000"))
+print(f"JAX devices: {gpus}")
+
+# Arrange the GPUs as a 1-D mesh. Split X by rows across them and replicate Y on
+# every GPU, so each GPU multiplies its own row-block locally (no cross-GPU
+# communication during the product).
+mesh = Mesh(gpus, ("gpus",))
+rows = NamedSharding(mesh, P("gpus", None))   # X: one row-block per GPU
+full = NamedSharding(mesh, P(None, None))     # Y: replicated on every GPU
+
+key = jax.random.PRNGKey(0)
+x = jax.device_put(jax.random.normal(key, (n, n), dtype=jnp.float32), rows)
+y = jax.device_put(jax.random.normal(key, (n, n), dtype=jnp.float32), full)
+
+matmul = jax.jit(lambda a, b: a @ b)
+matmul(x, y).block_until_ready()              # warm-up: compile + place the shards
+t0 = time.time()
+for _ in range(10):
+    matmul(x, y).block_until_ready()
+dt = time.time() - t0
+
+print(f"devices={len(gpus)}  n={n}  time={dt:.3f}s  {2 * n**3 * 10 / dt / 1e12:.1f} TFLOP/s")
+```
+
+## 1. A single CPU core {#one-cpu}
+
+```bash
+#!/usr/bin/env bash
+#SBATCH --job-name=jax-1cpu
+#SBATCH --output=logs/%x-%j.out
+#SBATCH --partition=general
+#SBATCH --time=02:00:00     # one core is genuinely slow at N=20000
+#SBATCH --mem=16G
+#SBATCH --cpus-per-task=1
+
+set -euo pipefail
+mkdir -p logs
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate jax_cpu
+
+export JAX_PLATFORMS=cpu
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+python matmul.py
+```
+
+## 2. Many CPU cores {#many-cpus}
+
+Same script and environment; just reserve more cores. JAX/XLA spreads the single matrix product across every core Slurm gives the job, so it finishes several times faster:
+
+```bash
+#!/usr/bin/env bash
+#SBATCH --job-name=jax-ncpu
+#SBATCH --output=logs/%x-%j.out
+#SBATCH --partition=general
+#SBATCH --time=00:15:00
+#SBATCH --mem=32G
+#SBATCH --cpus-per-task=32
+
+set -euo pipefail
+mkdir -p logs
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate jax_cpu
+
+export JAX_PLATFORMS=cpu
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+python matmul.py
+```
+
+## 3. One GPU {#one-gpu}
+
+```bash
+#!/usr/bin/env bash
+#SBATCH --job-name=jax-1gpu
+#SBATCH --output=logs/%x-%j.out
+#SBATCH --partition=general
+#SBATCH --time=00:15:00
+#SBATCH --mem=32G
+#SBATCH --cpus-per-task=8
+#SBATCH --gres=gpu:1
+
+set -euo pipefail
+mkdir -p logs
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate jax_gpu
+
+nvidia-smi
+python matmul.py          # JAX uses the GPU automatically
+```
+
+## 4. Multiple GPUs {#many-gpus}
+
+Now Slurm hands the job several GPUs and the sharded script spreads one matmul across them. Submit it with `--gres=gpu:1`, then `gpu:2` to watch the same product speed up:
+
+```bash
+#!/usr/bin/env bash
+#SBATCH --job-name=jax-ngpu
+#SBATCH --output=logs/%x-%j.out
+#SBATCH --partition=general
+#SBATCH --time=00:15:00
+#SBATCH --mem=64G
+#SBATCH --cpus-per-task=16
+#SBATCH --gres=gpu:2      # also try gpu:1
+
+set -euo pipefail
+mkdir -p logs
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate jax_gpu
+
+nvidia-smi
+python matmul_sharded.py    # one big matmul, split across the GPUs
+```
+
+## Results {#results}
+
+Submit these with `sbatch` and compare the TFLOP/s in the logs. We ran the whole ladder on `naranjito` at one size, multiplying 20000 × 20000 matrices, and timed a single product on each setup:
+
+| Setup | Time | Throughput | Speed-up |
+|:-------|-------:|-------:|:-------|
+| 1 CPU core | 430 s | 0.04 TFLOP/s | 1× |
+| 32 CPU cores | 15 s | 1.1 TFLOP/s | \~30× |
+| 1 GPU (L40S) | 0.18 s | 89 TFLOP/s | \~2,400× |
+| 2 GPUs | 0.087 s | 184 TFLOP/s | \~4,900× |
+
+Two things stand out. First, the leap from CPU to GPU: the same code on the same matrices takes about seven minutes on one core but under a fifth of a second on one L40S, roughly 2,400 times faster, and a single GPU still beats all 32 cores together by about 80×. Second, the GPUs scale cleanly: two roughly halve the one-GPU time (2.1×), because the work splits neatly. Each GPU owns a block of rows and needs nothing from the others during the multiply.
+
+::: {.callout-important title="The catch: communication and data movement"}
+That near-perfect GPU scaling is the *best* case, and it happens only because this matmul barely communicates. Most real multi-GPU workloads scale worse, and some do not speed up at all. Before reaching for more GPUs, weigh three costs the table above hides:
+
+- **Getting data onto the GPUs.** Arrays start in CPU RAM and must cross the PCIe bus into GPU memory. For short jobs that transfer can cost more than the computation itself, so load data onto the GPU once and reuse it rather than copying it every step.
+- **GPU-to-GPU communication.** Data-parallel training averages gradients every step (an *all-reduce*); tensor parallelism exchanges partial results (an *all-gather*). The L40S in `naranjito` are linked by PCIe rather than NVLink, so that cross-GPU traffic is comparatively slow and can wipe out the gain from extra GPUs.
+- **Feeding the GPUs.** If a CPU data loader cannot prepare batches fast enough, the GPUs sit idle and `nvidia-smi` shows low utilisation; give the loader more workers (`--cpus-per-task`) or prefetch.
+
+**Rule of thumb:** more GPUs help only when each one has enough independent work that computation dwarfs the transfer and communication around it. Always measure 1 vs. 2 before committing a long job to two.
+:::
+
+Watch a running GPU job's utilisation from another shell ([Monitor jobs](working-with-jobs.qmd#monitor) covers general monitoring):
+
+```bash
+srun --overlap --jobid=<jobid> --pty nvidia-smi   # if your config allows it
+```

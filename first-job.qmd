@@ -1,0 +1,221 @@
+---
+title: "Your First Job"
+description: "A first batch job, then a complete Python project with Conda or uv."
+---
+
+## The five Slurm commands you need first {#five-commands}
+
+| Command | What it does |
+|:----------|:-------------------------------|
+| `sinfo` | Shows partitions, nodes, and whether resources are idle, allocated, or down. |
+| `sbatch job.sh` | Submits a batch job script. This is the normal way to run work. |
+| `squeue -u $USER` | Shows your queued and running jobs. |
+| `scancel <jobid>` | Cancels a job. |
+| `sacct` or `seff <jobid>` | Shows accounting and efficiency information after a job finishes ([Monitor jobs](working-with-jobs.qmd#monitor)). |
+
+## Run your first job {#first-job}
+
+Create a file named `hello.slurm`:
+
+```{.bash filename="hello.slurm"}
+#!/usr/bin/env bash
+#SBATCH --job-name=hello
+#SBATCH --output=hello-%j.out
+#SBATCH --partition=general
+#SBATCH --time=00:02:00
+#SBATCH --mem=1G
+#SBATCH --cpus-per-task=1
+
+echo "Job ID: ${SLURM_JOB_ID}"
+echo "Running on: ${SLURMD_NODENAME}"
+hostname
+date
+```
+
+Every batch script has the same shape: the `#!/usr/bin/env bash` line, a block of `#SBATCH` directives that tell Slurm what to reserve, and then ordinary shell commands. The `#SBATCH` lines must come before any real command. Here is what this header asks for:
+
+| Directive | Meaning |
+|:----------|:-------------------------------|
+| `--job-name=hello` | A label shown in `squeue`. |
+| `--output=hello-%j.out` | File for the job's printed output; `%j` is replaced by the job ID, so each run gets its own file. |
+| `--partition=general` | Which queue to run in (see [Partitions](server.qmd#partitions)). |
+| `--time=00:02:00` | Maximum wall-clock time (HH:MM:SS). Slurm stops the job if it runs longer. |
+| `--mem=1G` | Total RAM reserved for the job. |
+| `--cpus-per-task=1` | How many CPU cores to reserve. |
+
+The lines after the header run on the compute node. Variables such as `$SLURM_JOB_ID` and `$SLURMD_NODENAME` are set by Slurm, so a script can report where and how it ran.
+
+Submit and inspect it:
+
+```bash
+sbatch hello.slurm
+squeue -u $USER
+ls
+cat hello-*.out
+```
+
+The `*` in `hello-*.out` is a shell *wildcard*: it stands for "any characters here", so `cat hello-*.out` prints whichever `hello-<jobid>.out` file the run created without you having to type the exact job ID.
+
+If you omit `--partition`, the job runs in the default `interactive` partition, which stops jobs after 8 hours. For batch work, set `--partition=general`.
+
+## A complete example: run Python from scratch {#python-from-scratch}
+
+This is the whole workflow end to end to install and run a Python job: install a Python distribution, create an isolated environment with the packages you need, write a small program, and run it as a Slurm job. Every command is included; do it once and the pattern repeats for every project.
+
+### Step 1: Install Miniforge (once per account)
+
+Miniforge is a minimal, free Conda installer that uses the community `conda-forge` channel by default. Install it into your home directory:
+
+```bash
+cd ~
+curl -L -O https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+bash Miniforge3-Linux-x86_64.sh -b -p $HOME/miniforge3
+$HOME/miniforge3/bin/conda init bash
+source ~/.bashrc
+```
+
+After this your prompt shows `(base)` and the `conda` command is available. You only do this once.
+
+### Step 2: Create an environment with the packages you need
+
+Make one environment per project so versions never clash. Here we install NumPy and pandas as example dependencies:
+
+```bash
+conda create --name my_project python=3.11 numpy pandas
+conda activate my_project
+python -c "import numpy, pandas; print(numpy.__version__, pandas.__version__)"
+```
+
+`conda create` builds a fresh, isolated environment. By listing the packages you want immediately after the environment name (here, `numpy` and `pandas`), Conda will install them alongside a compatible Python version. Next, use `conda activate my_project` to switch your current shell into this new environment. Once active, you can add more packages at any time using `conda install <package>` or `pip install <package>`.
+
+::: {.callout-note title="Activate the environment inside the job, too"}
+Activating an environment in your login shell only affects *that* shell. A Slurm job starts in a clean shell that does *not* inherit it, so every job script must run `source ~/miniforge3/etc/profile.d/conda.sh` and `conda activate my_project` itself before calling `python` (see Step 4 below). Sourcing `~/.bashrc` is not enough: in a job it stops before reaching the Conda setup, because it only runs in full for interactive shells.
+:::
+
+### Step 3: Write a small Python program
+
+Save this as `~/slurm-test/analysis.py`:
+
+```{.python filename="analysis.py"}
+import numpy as np
+import pandas as pd
+
+rng = np.random.default_rng(0)
+data = pd.DataFrame({"x": rng.normal(size=1000)})
+data["y"] = 2 * data["x"] + rng.normal(size=1000)
+
+print("rows:", len(data))
+print(data.corr())
+data.describe().to_csv("summary.csv")
+print("wrote summary.csv")
+```
+
+### Step 4: Write the Slurm job script
+
+Save this as `~/slurm-test/run_analysis.slurm`. Notice that it activates the *same* environment before running Python, since a job does not inherit whatever environment is active in your shell.
+
+In the job script below, the `set -euo pipefail` line is a safety net: it tells bash to stop immediately if any command fails (`-e`), if it uses a variable that was never set (`-u`), or if any stage of a pipeline fails (`-o pipefail`). Without it, a job can sail past a broken step and quietly produce a half-finished result.
+
+```{.bash filename="run_analysis.slurm"}
+#!/usr/bin/env bash
+#SBATCH --job-name=analysis
+#SBATCH --output=analysis-%j.out
+#SBATCH --partition=general
+#SBATCH --time=00:05:00
+#SBATCH --mem=2G
+#SBATCH --cpus-per-task=1
+
+set -euo pipefail
+
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate my_project
+
+cd ~/slurm-test
+python analysis.py
+```
+
+### Step 5: Submit it and read the result
+
+```bash
+cd ~/slurm-test
+sbatch run_analysis.slurm     # prints: Submitted batch job 12345
+squeue -u $USER               # watch it queue, then run
+cat analysis-12345.out        # the printed output (use your own job ID)
+cat summary.csv               # the file the script wrote
+```
+
+That is the full loop. For any new project you repeat Steps 2–5: a fresh environment, your code, a job script that activates that environment, and `sbatch`.
+
+## A lightweight alternative: uv instead of Miniforge {#uv}
+
+Miniforge is not the only way to get Python environments on `naranjito`. **uv** is a free, open-source tool that handles Python installation, environments and PyPI packages. It is one self-contained program in your home directory, needs no admin rights, and is usually much faster than Conda. Each environment is an ordinary folder, by default called `.venv` and kept inside the project folder it belongs to.
+
+Which one should you use?
+
+- **uv** when everything your project needs is a Python package on PyPI: NumPy, pandas, scikit-learn, PyTorch, JAX, and so on.
+- **Miniforge** when you also need software that is not a Python package (R, compilers, GDAL, a CUDA toolkit), or when someone hands you a Conda `environment.yml`.
+
+You can have both installed, and nothing in the Miniforge steps above has to change. The steps below redo the walkthrough with uv. Only Steps 1, 2 and 4 differ; Step 3 (`analysis.py`) and Step 5 (submitting the job) are exactly as above.
+
+### Step 1 (uv): Install uv (once per account)
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.bashrc
+uv --version
+```
+
+The installer puts the `uv` program (and its companion `uvx`) in `~/.local/bin` and, if that folder is not on your `PATH` yet, adds it through `~/.bashrc` and `~/.profile`. Unlike Miniforge, it adds no `(base)` environment to your prompt. You only do this once; `uv self update` upgrades uv later.
+
+### Step 2 (uv): Create an environment with the packages you need
+
+Create the environment inside the project folder, here `~/slurm-test`, and install NumPy and pandas as before:
+
+```bash
+cd ~/slurm-test
+uv venv --python 3.11          # creates the environment in ~/slurm-test/.venv
+source .venv/bin/activate      # the uv counterpart of "conda activate"
+uv pip install numpy pandas
+python -c "import numpy, pandas; print(numpy.__version__, pandas.__version__)"
+```
+
+`uv venv` builds a fresh, isolated environment in the folder `.venv`. If Python 3.11 is not available yet, uv downloads it into your home directory on the spot, so there is nothing else to install. `source .venv/bin/activate` switches your shell into the environment (the prompt now starts with `(slurm-test)`), and `deactivate` leaves it. An environment can also live anywhere else: `uv venv ~/venvs/jax_gpu` creates a named one, much like a Conda environment. Add more packages at any time with `uv pip install <package>`, which accepts the same package names and version specifiers as `pip`.
+
+::: {.callout-note}
+## Use `uv pip`, not `pip`
+
+A uv environment contains no `pip` of its own. Inside one, `python -m pip` fails, and a plain `pip install` runs the system's `pip` (or Conda's), which either refuses or installs the package somewhere else. Always type `uv pip install`.
+:::
+
+### Step 4 (uv): Write the Slurm job script
+
+Save this as `~/slurm-test/run_analysis.slurm` instead of the Conda version. It is the same script, except that one line activating `.venv` replaces the two Conda lines. Activating the environment inside the script means the job runs the same way whatever happens to be active in the shell you submit from:
+
+```{.bash filename="run_analysis.slurm"}
+#!/usr/bin/env bash
+#SBATCH --job-name=analysis
+#SBATCH --output=analysis-%j.out
+#SBATCH --partition=general
+#SBATCH --time=00:05:00
+#SBATCH --mem=2G
+#SBATCH --cpus-per-task=1
+
+set -euo pipefail
+
+source ~/slurm-test/.venv/bin/activate
+
+cd ~/slurm-test
+python analysis.py
+```
+
+Write `analysis.py` (Step 3) and submit the job (Step 5) exactly as above.
+
+::: {.callout-note title="Every job script in this guide works with uv"}
+Wherever a job script runs `source ~/miniforge3/etc/profile.d/conda.sh` and `conda activate <env>`, replace those two lines with the activation script of your uv environment, for example:
+
+```bash
+source ~/my_project/.venv/bin/activate
+```
+
+It needs neither uv nor Conda at run time, so it behaves the same in every job.
+:::

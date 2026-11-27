@@ -1,0 +1,65 @@
+---
+title: "Quick Reference"
+description: "Commands, Slurm variables, and a script skeleton to copy."
+---
+
+## Starter commands {#commands}
+
+```bash
+# Cluster status
+sinfo
+squeue -u $USER
+
+# Submit and cancel
+sbatch job.slurm
+scancel <jobid>
+
+# Interactive shell
+srun --partition=interactive --time=01:00:00 --mem=4G --cpus-per-task=2 --pty bash -i
+
+# Accounting
+sacct -j <jobid> --format=JobID,State,Elapsed,MaxRSS,ReqMem,AllocCPUS
+seff <jobid>
+```
+
+## Slurm environment variables {#variables}
+
+| Variable | Meaning |
+|:----------|:-------------------------------|
+| `$SLURM_JOB_ID` | Numeric job ID. |
+| `$SLURM_JOB_NAME` | Job name from `--job-name`. |
+| `$SLURMD_NODENAME` | Node running the job. |
+| `$SLURM_CPUS_PER_TASK` | Number of CPU cores requested with `--cpus-per-task`. |
+| `$SLURM_ARRAY_TASK_ID` | Current array task index. Only set for job arrays. |
+| `$SLURM_SUBMIT_DIR` | Directory from which the job was submitted. |
+
+## Minimal script skeleton {#skeleton}
+
+```{.bash filename="job.slurm"}
+#!/usr/bin/env bash
+#SBATCH --job-name=<name>
+#SBATCH --output=logs/%x-%j.out
+#SBATCH --error=logs/%x-%j.err
+#SBATCH --time=HH:MM:SS
+#SBATCH --mem=4G
+#SBATCH --cpus-per-task=1
+#SBATCH --partition=general
+
+set -euo pipefail
+mkdir -p logs
+
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate <env-name>
+
+# Your command here
+python script.py
+```
+
+## Further reading {#references}
+
+This guide follows the practical structure used by established university HPC documentation while adapting every example to the CUNEF `naranjito` server:
+
+- Duke Compute Cluster, Scheduling Jobs:\
+  <https://oit-rc.pages.oit.duke.edu/rcsupportdocs/dcc/slurm/>
+- Slurm upstream documentation:\
+  <https://slurm.schedmd.com/documentation.html>

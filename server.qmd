@@ -1,0 +1,102 @@
+---
+title: "The Server"
+description: "Hardware, partitions, and the usage limits that decide how much you can run, and for how long."
+---
+
+## Hardware {#hardware}
+
+The CUNEF server is a single machine called `naranjito`. Its hardware, shared by all users, is summarised below; in short, 192 CPU cores, 256 GB of RAM, and four NVIDIA L40S GPUs. You never run heavy work on it directly; instead you submit it to a *partition* (queue). All partitions schedule this same node.
+
+| Component | Detail |
+|:-----------|:--------------------------------|
+| Node | `naranjito`, a single shared node running Ubuntu 24.04 LTS. |
+| CPU | Two Intel Xeon 6740E processors ("Sierra Forest"), 96 cores each: **192 cores** in total, one thread per core (no hyper-threading). Slurm holds 8 of them (cores 0–7) back for the operating system, so jobs can use at most **184**. |
+| Clock & cache | 2.4 GHz base, up to \~3.2 GHz turbo; 96 MB L3 cache per socket. |
+| Memory | 256 GB installed. Slurm manages `250000` MB of it and holds `32768` MB of that back for the operating system, so it schedules up to `217232` MB (≈212 GB). The largest `--mem` a single job can request is therefore `--mem=217232M`, and only through `preemptible`; elsewhere each user can hold at most about 106 GB at once ([Usage limits](#usage-limits)). |
+| GPUs | **Four NVIDIA L40S**, 48 GB GDDR6 each (192 GB total), Ada Lovelace architecture, compute capability 8.9. Reachable from every partition with `--gres=gpu:N`; each user can hold at most 2 at once (1 in `interactive` and `long`), or all 4 through `preemptible` ([Usage limits](#usage-limits)). |
+| GPU driver | NVIDIA 580.159.03 (runs CUDA 12.x / 13.x workloads). |
+| Scheduler | Slurm with `select/cons_tres` (cores and memory tracked per job) and backfill scheduling. |
+
+## Partitions {#partitions}
+
+See the partitions live with `sinfo`:
+
+```bash
+sinfo
+```
+
+```text
+PARTITION    AVAIL  TIMELIMIT  NODES  STATE NODELIST
+interactive*    up    8:00:00      1    mix naranjito
+general         up   infinite      1    mix naranjito
+short           up   infinite      1    mix naranjito
+long            up   infinite      1    mix naranjito
+preemptible     up 7-00:00:00      1    mix naranjito
+```
+
+The `TIMELIMIT` column shows only partition limits. The 3- and 7-day limits of `short` and `long` come from their QoS (see the table below), so `sinfo` shows them as `infinite`.
+
+::: {.callout-note title="Why some commands show 192 cores and 250000 MB"}
+`sinfo -o "%P %c %m"` and `scontrol show partition` report the node's full 192 cores and `250000` MB, because they ignore what Slurm holds back for the operating system. What jobs can actually use is **184 cores** and **`217232` MB** (≈212 GB). `scontrol show node naranjito` shows the usable cores as `CPUEfctv=184`. All the limits in this guide are fractions of these usable totals.
+:::
+
+| Partition | When to use it |
+|:-------|:--------------------------------|
+| `interactive` | The default queue (note the `*`). Maximum wall time **8 hours**. Best for interactive sessions with `srun --pty`: testing commands, installing packages, light debugging, short notebooks. It keeps its own, tighter limits: at most 16 cores, 64 GB, 1 GPU, and 2 jobs per user. |
+| `general` | The partition for batch jobs, and the everyday choice for production runs. It has **no maximum run time**: how long a job may run depends instead on how much of the server it uses ([Usage limits](#usage-limits)). A job that does not set `--time` gets **1 hour**. |
+| `short`, `long` | Kept so that existing scripts keep working; use `general` in new scripts. Both are covered by the limits of `general`, and both also keep their earlier limits per user: `short` 3 days, 64 cores, 128 GB, 2 GPUs, and 4 jobs; `long` 7 days, 32 cores, 96 GB, 1 GPU, and 2 jobs. |
+| `preemptible` | Jobs of up to **7 days** that may use up to all **4 GPUs**, beyond the per-user limits of `general`. They run only on resources that would otherwise sit idle: when other users need those resources, your job is **requeued** (killed and restarted from the beginning, not paused). Use it for large or long work that saves checkpoints (see [Checkpoint long jobs](multicore.qmd#checkpoint)). |
+
+## Usage limits {#usage-limits}
+
+Over the past months the server was often full, and users could be locked out of it for long stretches. To keep the queue moving, `general` has no maximum run time. Instead, it limits the total *resource-hours* of each user's running jobs, that is, the resources a job holds multiplied by the time it requests. The rule is that the jobs you have running at any moment may add up to at most **a quarter of the server for one day**, where "the server" means the 184 cores and 212 GB that Slurm can schedule. These limits also cover `short` and `long`; `interactive` and `preemptible` have their own ([Partitions](#partitions)).
+
+The larger a job, the shorter it must be: a job that uses half of the server can run for up to 12 hours, one that uses a quarter for up to 24 hours, one that uses an eighth for up to 48 hours, and so on.
+
+The limit applies separately to CPU cores, memory, and GPUs, and a job starts only if it fits within all three:
+
+| Resource | Budget per user | Examples that fit |
+|:-------|:--------------|:-------------------|
+| CPU cores | 1,104 core-hours (46 cores × 24 h) | 23 cores for 48 h; 46 cores for 24 h; 92 cores for 12 h |
+| Memory | 1,272 GB-hours (53 GB × 24 h) | 26 GB for 48 h; 53 GB for 24 h; 106 GB for 12 h |
+| GPUs | 24 GPU-hours (1 GPU × 24 h) | 1 GPU for 24 h; 2 GPUs for 12 h |
+
+On top of this budget, **no user can hold more than 92 cores, 106 GB of memory (`--mem=108616M`), or 2 GPUs at once**, across all of their running jobs: exactly half of what Slurm can schedule. Only `preemptible` goes beyond these limits (see the box below). Three points are worth keeping in mind:
+
+- **The limit counts the time you request, not the time you use.** The scheduler cannot know in advance how long a job will actually run, so it charges the `--time` you ask for. A job that requests 3 days counts as 3 days even if it ends after an hour. Always set `--time`, and keep it realistic; a job in `general` that does not set it gets 1 hour.
+- **It adds up all your running jobs.** Two jobs with 1 GPU for 24 hours each would need 48 GPU-hours, so the second one waits until the first finishes.
+- **Memory is usually the tightest limit.** The budget works out at about 1.15 GB per core, so a job that needs more memory per core than that is limited by memory rather than by cores. For example, a job with 16 cores and 64 GB for 24 hours needs 384 core-hours, well within budget, but 1,536 GB-hours of memory, which is over, so it will never start. Asking for `--mem=48G` or `--time=18:00:00` (1,152 GB-hours either way) brings it under.
+
+**If a job waits because of these limits**, `squeue -u $USER -o "%i %P %T %r"` shows a reason naming the limit it hit (for example, one starting with `QOS`). If the job exceeds the limits only together with your other running jobs, it starts on its own once enough of them finish. If it exceeds the limits by itself, it will never start: cancel it with `scancel` and resubmit it with a shorter `--time`, fewer resources, or in `preemptible`.
+
+::: {.callout-note}
+## Going beyond the limits: `preemptible`
+
+The `preemptible` partition is the intended way around these limits. A job there can run for up to 7 days and use up to all 4 GPUs, as long as the resources would otherwise be idle. If other users need them, the job is requeued and starts again from the beginning, so make it save checkpoints ([Checkpoint long jobs](multicore.qmd#checkpoint)). You can also submit a job to both partitions at once; Slurm then runs it in `general` if your limits allow it, and in `preemptible` if they do not:
+
+```bash
+#SBATCH --partition=general,preemptible
+```
+:::
+
+::: {.callout-note title="These numbers will change"}
+The limits are new and still being tuned, so the values above may change. `sacctmgr show qos` and `sacctmgr show assoc user=$USER` show the current ones. If the limits get in the way of your work, tell the server administrators; they will try to accommodate your workflow.
+:::
+
+## Check live status {#live-status}
+
+The partitions are described above; these commands show their *current* state, meaning what is busy, free, or offline right now:
+
+```bash
+sinfo -o "%P %a %l %D %t %c %m %G"    # time limit, cores, memory, GPUs per partition
+scontrol show partition general       # full settings for one partition
+```
+
+The state column tells you whether you will start immediately:
+
+| State | Meaning |
+|:-------|:--------------------------------|
+| `idle` | Available now. |
+| `alloc` | Fully allocated to jobs. |
+| `mix` | Partly allocated; some resources may remain. |
+| `down` or `drain` | Not available for normal scheduling. |
