@@ -76,7 +76,7 @@ A handful of names and terms recur throughout this guide. The table below is a q
 |:----------|:-------------------------------|
 | `naranjito.cunef.edu` | The hostname you connect to (by SSH, VS Code, or browser). |
 | `<username>` | Your CUNEF server user name. Replace it wherever it appears below. |
-| Partitions | `general` (batch jobs), `interactive`, `preemptible`: the Slurm queues you can submit to ([Section 1.6](server.qmd#partitions)). The older `short` and `long` still exist so that existing scripts keep working. |
+| Partitions | `general` (batch jobs), `interactive`, `preemptible`: the Slurm queues you can submit to ([Section 1.6](server.qmd#partitions)). The older `short` and `long` are still available. |
 | Usage limits | How much of the server each user can hold, and for how long ([Section 1.7](server.qmd#usage-limits)). |
 | Hardware | One shared node: 192 CPU cores, 256 GB RAM, and 4 NVIDIA L40S GPUs ([Section 1.6](server.qmd#partitions)). |
 | `$HOME` | Your personal directory for code, scripts, and Conda environments. |
