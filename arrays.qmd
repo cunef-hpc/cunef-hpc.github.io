@@ -1,9 +1,8 @@
 ---
 title: "Arrays and Pipelines"
-description: "Run one script over many inputs, and chain jobs that depend on each other."
 ---
 
-## Job arrays {#arrays}
+## [2.1]{.secnum} Job Arrays {#arrays}
 
 A job array submits *one* script many times in a single `sbatch` call. You give a range with `--array` (for example `--array=0-99`) and Slurm launches one independent *task* per index, running as many at once as the machine has room for. Inside each task the variable `$SLURM_ARRAY_TASK_ID` holds that task's number, so the *same* script does different work depending on which task it is.
 
@@ -39,14 +38,14 @@ sbatch array-demo.slurm
 squeue -u $USER
 ```
 
-Each running task counts towards your [usage limits](server.qmd#usage-limits), so Slurm starts only as many tasks at once as the limits allow and queues the rest. You can also limit concurrency yourself if each task is heavy:
+Each running task counts towards your usage limits ([Section 1.7](server.qmd#usage-limits)), so Slurm starts only as many tasks at once as the limits allow and queues the rest. You can also limit concurrency yourself if each task is heavy:
 
 ```bash
 # Runs tasks 0 to 999, but only 25 at the same time
 #SBATCH --array=0-999%25
 ```
 
-## Arrays over a list of files {#file-arrays}
+## [2.2]{.secnum} Arrays Over a List of Files {#file-arrays}
 
 Often the "different work" for each task is simply *a different input file*. The idea is to turn your files into a numbered list, then let each array task pick the file sitting at its own index.
 
@@ -70,7 +69,7 @@ python scripts/process_one.py --input "$INPUT" --output "results/${SLURM_ARRAY_T
 
 So task 0 processes the first file, task 1 the second, and so on, all in parallel. If you add or remove files later, rebuild `filelist.txt` and update the `--array` range to match its new length.
 
-## Job dependencies {#dependencies}
+## [2.3]{.secnum} Job Dependencies {#dependencies}
 
 Some jobs must run *in order*: you cannot fit a model before the data is cleaned, and you cannot build the report before the model has run. A *dependency* tells Slurm "do not start this job until that other one has finished successfully". That lets you submit a whole pipeline in one go and walk away: the scheduler sequences the steps for you instead of you launching each one by hand.
 

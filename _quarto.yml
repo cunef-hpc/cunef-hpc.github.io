@@ -3,6 +3,7 @@ project:
   output-dir: _site
   resources:
     - assets/cunef-slurm-user-guide.pdf
+    - assets/cunef-logo.png
 
 website:
   title: "CUNEF Server Guide"
@@ -19,17 +20,19 @@ website:
   sidebar:
     style: docked
     collapse-level: 2
-    header: "[by Roi Naveiro](https://roinaveiro.github.io/){.sidebar-byline}"
+    logo: assets/cunef-logo.png
+    logo-alt: "CUNEF Universidad"
+    logo-href: index.html
     contents:
       - text: "Overview"
         href: index.qmd
-      - section: "Basics"
+      - section: "Everyday Use"
         contents:
           - getting-started.qmd
           - server.qmd
           - first-job.qmd
           - working-with-jobs.qmd
-      - section: "Advanced"
+      - section: "Advanced Usage"
         contents:
           - arrays.qmd
           - gpus.qmd

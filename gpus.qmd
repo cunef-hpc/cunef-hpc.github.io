@@ -1,14 +1,16 @@
 ---
-title: "GPUs: Scaling Up with JAX"
-description: "The same script on one core, many cores, one GPU, and two, and what limits multi-GPU speed-ups."
+title: "Scaling Up with JAX"
+toc-depth: 3
 ---
+
+## [2.4]{.secnum} Scaling Up with JAX: One CPU to Many GPUs {#gpu}
 
 [JAX](https://docs.jax.dev/) is a Python library for high-performance numerical computing. You write plain NumPy-style code, and JAX compiles it (with the XLA compiler) and runs it on whatever hardware it finds, whether that is a CPU, one GPU, or several, without you changing a line. That makes it a neat way to see what `naranjito` can do. The example below multiplies large matrices and reports throughput in *TFLOP/s* (trillions of floating-point operations per second), and we run the *same script* on one CPU core, on many cores, on one L40S GPU, and on two at once. The matrix multiply is not really the point; the scaling is. The real question is how much faster the same work gets as we give it more of the machine. (PyTorch and TensorFlow follow the same Slurm pattern: a Conda environment plus `--gres=gpu:N`.)
 
 ::: {.callout-important}
 ## The GPUs on `naranjito`
 
-The node has **four NVIDIA L40S** GPUs (48 GB each), exposed to Slurm as the generic resource `gpu` and reachable from *every* partition. Add `--gres=gpu:N` to any job (`N` up to 2, or up to 4 in `preemptible`; see [Usage limits](server.qmd#usage-limits)). The default `sinfo` output does not list GPUs; see them with:
+The node has **four NVIDIA L40S** GPUs (48 GB each), exposed to Slurm as the generic resource `gpu` and reachable from *every* partition. Add `--gres=gpu:N` to any job (`N` up to 2, or up to 4 in `preemptible`; see [Section 1.7](server.qmd#usage-limits)). The default `sinfo` output does not list GPUs; see them with:
 
 ```bash
 sinfo -o "%P %G"                 # shows gpu:4 on each partition
@@ -24,10 +26,10 @@ long          gpu:4
 preemptible   gpu:4
 ```
 
-All four GPUs live in one node, but outside `preemptible` a user can hold at most two at once, and two only for up to 12 hours. A job in `preemptible` can use all four. The two CPU-only examples below need no GPU and run unchanged.
+All four GPUs live in one node, but outside `preemptible` a user can hold at most two at once, and two only for up to 12 hours. A job in `preemptible` can use all four ([Section 1.7](server.qmd#usage-limits)). The two CPU-only examples below need no GPU and run unchanged.
 :::
 
-## Environments {#environments}
+### Environments {#environments}
 
 ```bash
 # CPU-only JAX
@@ -41,7 +43,7 @@ conda activate jax_gpu
 python -m pip install -U "jax[cuda12]"
 ```
 
-## The benchmark scripts {#scripts}
+### The benchmark scripts {#scripts}
 
 Save this as `matmul.py`. It multiplies two `n` × `n` matrices (we use *n* = 20000) ten times and reports the throughput in TFLOP/s. JAX runs it on whatever device it finds, so this one file serves the single-CPU, many-CPU, and single-GPU runs:
 
@@ -97,7 +99,7 @@ dt = time.time() - t0
 print(f"devices={len(gpus)}  n={n}  time={dt:.3f}s  {2 * n**3 * 10 / dt / 1e12:.1f} TFLOP/s")
 ```
 
-## 1. A single CPU core {#one-cpu}
+### 1. A single CPU core {#one-cpu}
 
 ```bash
 #!/usr/bin/env bash
@@ -118,7 +120,7 @@ export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 python matmul.py
 ```
 
-## 2. Many CPU cores {#many-cpus}
+### 2. Many CPU cores {#many-cpus}
 
 Same script and environment; just reserve more cores. JAX/XLA spreads the single matrix product across every core Slurm gives the job, so it finishes several times faster:
 
@@ -141,7 +143,7 @@ export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 python matmul.py
 ```
 
-## 3. One GPU {#one-gpu}
+### 3. One GPU {#one-gpu}
 
 ```bash
 #!/usr/bin/env bash
@@ -162,7 +164,7 @@ nvidia-smi
 python matmul.py          # JAX uses the GPU automatically
 ```
 
-## 4. Multiple GPUs {#many-gpus}
+### 4. Multiple GPUs {#many-gpus}
 
 Now Slurm hands the job several GPUs and the sharded script spreads one matmul across them. Submit it with `--gres=gpu:1`, then `gpu:2` to watch the same product speed up:
 
@@ -185,8 +187,6 @@ nvidia-smi
 python matmul_sharded.py    # one big matmul, split across the GPUs
 ```
 
-## Results {#results}
-
 Submit these with `sbatch` and compare the TFLOP/s in the logs. We ran the whole ladder on `naranjito` at one size, multiplying 20000 × 20000 matrices, and timed a single product on each setup:
 
 | Setup | Time | Throughput | Speed-up |
@@ -208,7 +208,7 @@ That near-perfect GPU scaling is the *best* case, and it happens only because th
 **Rule of thumb:** more GPUs help only when each one has enough independent work that computation dwarfs the transfer and communication around it. Always measure 1 vs. 2 before committing a long job to two.
 :::
 
-Watch a running GPU job's utilisation from another shell ([Monitor jobs](working-with-jobs.qmd#monitor) covers general monitoring):
+Watch a running GPU job's utilisation from another shell ([Section 1.14](working-with-jobs.qmd#monitor) covers general monitoring):
 
 ```bash
 srun --overlap --jobid=<jobid> --pty nvidia-smi   # if your config allows it

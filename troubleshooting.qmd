@@ -1,24 +1,23 @@
 ---
 title: "Troubleshooting"
-description: "What to check when a job misbehaves, and good cluster citizenship."
 ---
 
-## When a job misbehaves {#symptoms}
+## [2.7]{.secnum} Troubleshooting {#troubleshooting}
 
 When a job misbehaves, three things explain almost everything: its log files (`*.out` and `*.err`), `squeue` (is it running, and if not, why), and `sacct`/`seff` (what it actually used). The table maps a symptom to the next thing to look at.
 
 | Symptom | What to check |
 |:----------|:------------------------------|
-| Job stuck in `PENDING` | Ask *why*: `squeue -u $USER -o "%i %T %r"` prints a reason. `(Resources)` or `(Priority)` just means wait your turn; `(Dependency)` means an earlier job in a chain has not finished; a reason naming a limit (for example, one starting with `QOS`) means the job is over your usage limits. It starts once your other running jobs finish, unless it is over the limits by itself; then cancel it and resubmit it with a shorter `--time`, fewer resources, or in `preemptible` ([Usage limits](server.qmd#usage-limits)). |
+| Job stuck in `PENDING` | Ask *why*: `squeue -u $USER -o "%i %T %r"` prints a reason. `(Resources)` or `(Priority)` just means wait your turn; `(Dependency)` means an earlier job in a chain has not finished; a reason naming a limit (for example, one starting with `QOS`) means the job is over your usage limits. It starts once your other running jobs finish, unless it is over the limits by itself; then cancel it and resubmit it with a shorter `--time`, fewer resources, or in `preemptible` ([Section 1.7](server.qmd#usage-limits)). |
 | Job killed almost immediately | Read `*.err` and run `seff <jobid>`. `OUT_OF_MEMORY`, or a memory efficiency above 100%, means you exceeded `--mem`, so raise it. `DUE TO TIME LIMIT` means raise `--time`. |
 | `conda: command not found` | The job never loaded Conda (you may instead see `CondaError: Run 'conda init' before 'conda activate'`). Put `source ~/miniforge3/etc/profile.d/conda.sh` *before* `conda activate`; sourcing `~/.bashrc` does not work in a job. |
 | `ModuleNotFoundError` / package missing | You did not activate the right environment in the job, or installed the package elsewhere. Add `conda activate <env>`, and put `which python` above your command to confirm the interpreter. |
 | Output file empty / "did nothing" | The script failed before printing anything. Add `set -euo pipefail` so it stops loudly, echo `hostname` and `date` at the top, then read `*.err`. |
 | No CUDA device / only CPU seen | You forgot `--gres=gpu:N`, or activated a CPU-only environment. Run `nvidia-smi` and print `$CUDA_VISIBLE_DEVICES` inside the job; both should show the GPU(s). |
 | CUDA out of memory | The model or batch is too big for one L40S (48 GB). Shrink the batch, use a smaller model, or split across more GPUs with `--gres=gpu:N`; watch usage with `nvidia-smi`. |
-| Job uses only one core | The program is serial, or its thread count is unset. See [Multi-core jobs](multicore.qmd#multicore) and set `OMP_NUM_THREADS` (and friends) to `$SLURM_CPUS_PER_TASK`. |
+| Job uses only one core | The program is serial, or its thread count is unset. See [*Multi-Core Jobs*](multicore.qmd#multicore) above and set `OMP_NUM_THREADS` (and friends) to `$SLURM_CPUS_PER_TASK`. |
 
-## Good cluster citizenship {#citizenship}
+## [2.8]{.secnum} Good Cluster Citizenship {#citizenship}
 
 - Submit jobs with realistic time, memory, CPU, and GPU requests. They count against your usage limits whether you use them or not.
 - Run work that does not fit within the usage limits in `preemptible`, with checkpoints.

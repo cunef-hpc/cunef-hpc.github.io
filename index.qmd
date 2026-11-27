@@ -6,84 +6,90 @@ toc: false
 ---
 
 ::: {.home-header}
-[CUNEF Universidad]{.overline}
+<img src="assets/cunef-logo.png" alt="CUNEF Universidad" class="home-logo">
 
 # CUNEF Server User Guide {.home-title .unnumbered .unlisted}
 
 [Basic usage, Conda environments, jobs, GPUs, and reproducible workflows]{.home-subtitle}
 
 ::: {.byline}
-By [Roi Naveiro](https://roinaveiro.github.io/){.author}, Assistant Professor, CUNEF Universidad\
-For CUNEF faculty and research staff · Revised 27 November 2026 · [PDF version](assets/cunef-slurm-user-guide.pdf)
+[Roi Naveiro](https://roinaveiro.github.io/){.author}\
+Assistant Professor, CUNEF Universidad
+
+For CUNEF faculty and research staff.\
+Revised 27 November 2026. · [PDF version](assets/cunef-slurm-user-guide.pdf)
 :::
 :::
 
-This guide explains how to use `naranjito`, the shared compute server of CUNEF Universidad. It intentionally starts with the minimum commands needed to run one job, then adds resource selection, environments, arrays, GPUs, and troubleshooting.
-
-::: {.specs}
-Host
-: `naranjito.cunef.edu`, reachable from the CUNEF network or through the VPN
-
-Processors
-: Two Intel Xeon 6740E, 192 cores (184 available to jobs)
-
-Memory
-: 256 GB (about 212 GB available to jobs)
-
-GPUs
-: Four NVIDIA L40S, 48 GB each
-
-Scheduler
-: Slurm, with the partitions `general`, `interactive`, and `preemptible`
-
-System
-: Ubuntu 24.04 LTS
-:::
-
-All of it is shared by everyone through the Slurm scheduler. You log in, prepare your code and environment, and then ask Slurm to run the work through `sbatch` or `srun`. Everywhere in this guide, replace `<username>` with your own CUNEF server user name.
+This guide intentionally starts with the minimum commands needed to run one job, then adds resource selection, environments, arrays, GPUs, and troubleshooting.
 
 ## Contents {.unnumbered .unlisted}
 
 ::: {.contents-list}
-::: {.group-label}
-**Basics** The whole path from "I have an account" to running real work reliably.
+::: {.part-title}
+[1]{.secnum} Everyday Use
 :::
 
-1. [Getting Started](getting-started.qmd)\
-   [What Slurm is, how to log in, and how to move files to and from the server.]{.desc}
-2. [The Server](server.qmd)\
-   [Hardware, partitions, and the usage limits that decide how much you can run, and for how long.]{.desc}
-3. [Your First Job](first-job.qmd)\
-   [A first batch job, then a complete Python project with Conda or uv.]{.desc}
-4. [Working with Jobs](working-with-jobs.qmd)\
-   [Choosing resources, monitoring and cancelling jobs, interactive sessions, and notebooks.]{.desc}
+This section covers the whole path from "I have an account" to running real work reliably: logging in, moving files, submitting your first job, choosing sensible resources, monitoring and cancelling jobs, and using interactive sessions and notebooks. Everywhere below, replace `<username>` with your own CUNEF server user name.
 
-::: {.group-label}
-**Advanced** For users who run many experiments, use GPUs, need chains of jobs, or want better efficiency.
+- [Getting Started](getting-started.qmd)\
+  [[1.1]{.secnum} Log In · [1.2]{.secnum} Find Your Way Around · [1.3]{.secnum} Know Where You Are Working · [1.4]{.secnum} Copy Files To and From the Server]{.toc-sections}
+- [Slurm and the Server](server.qmd)\
+  [[1.5]{.secnum} The Five Slurm Commands You Need First · [1.6]{.secnum} The Compute Node and Its Partitions · [1.7]{.secnum} Usage Limits]{.toc-sections}
+- [Your First Job](first-job.qmd)\
+  [[1.8]{.secnum} Run Your First Job · [1.9]{.secnum} A Complete Example: Run Python from Scratch · [1.10]{.secnum} A Lightweight Alternative: uv Instead of Miniforge]{.toc-sections}
+- [Working with Jobs](working-with-jobs.qmd)\
+  [[1.11]{.secnum} Choose Reasonable Resources · [1.12]{.secnum} Check Live Status · [1.13]{.secnum} A Good Default Python Job Template · [1.14]{.secnum} Monitor Jobs · [1.15]{.secnum} Cancel a Job · [1.16]{.secnum} Use an Interactive Session · [1.17]{.secnum} Bonus: Run Notebooks Inside VS Code]{.toc-sections}
+
+::: {.part-title}
+[2]{.secnum} Advanced Usage
 :::
 
-5. [Arrays and Pipelines](arrays.qmd)\
-   [Run one script over many inputs, and chain jobs that depend on each other.]{.desc}
-6. [GPUs: Scaling Up with JAX](gpus.qmd)\
-   [The same script on one core, many cores, one GPU, and two, and what limits multi-GPU speed-ups.]{.desc}
-7. [Multi-Core and Long Jobs](multicore.qmd)\
-   [Use several cores correctly, and make long jobs restartable.]{.desc}
-8. [Troubleshooting](troubleshooting.qmd)\
-   [What to check when a job misbehaves, and good cluster citizenship.]{.desc}
+This section is for users who run many experiments, use GPUs, need chains of jobs, or want better efficiency.
 
-::: {.group-label}
-**Reference**
+- [Arrays and Pipelines](arrays.qmd)\
+  [[2.1]{.secnum} Job Arrays · [2.2]{.secnum} Arrays Over a List of Files · [2.3]{.secnum} Job Dependencies]{.toc-sections}
+- [Scaling Up with JAX](gpus.qmd)\
+  [[2.4]{.secnum} Scaling Up with JAX: One CPU to Many GPUs]{.toc-sections}
+- [Multi-Core and Long Jobs](multicore.qmd)\
+  [[2.5]{.secnum} Multi-Core Jobs · [2.6]{.secnum} Checkpoint Long Jobs]{.toc-sections}
+- [Troubleshooting](troubleshooting.qmd)\
+  [[2.7]{.secnum} Troubleshooting · [2.8]{.secnum} Good Cluster Citizenship]{.toc-sections}
+
+::: {.part-title}
+[3]{.secnum} Quick Reference
 :::
 
-9. [Quick Reference](reference.qmd)\
-   [Commands, Slurm variables, and a script skeleton to copy.]{.desc}
+- [Quick Reference](reference.qmd)\
+  [[3.1]{.secnum} Starter Commands · [3.2]{.secnum} Slurm Environment Variables · [3.3]{.secnum} Minimal Script Skeleton · [4]{.secnum} References]{.toc-sections}
+:::
+
+## Before You Start {#before-you-start}
+
+::: {.callout-important title="The CUNEF server at a glance"}
+The CUNEF compute server is reachable at `naranjito.cunef.edu`. It is a single large machine running Ubuntu 24.04 LTS, with two **Intel Xeon 6740E** CPUs (**192 cores** in total), **256 GB of RAM** (about 212 GB schedulable), and **four NVIDIA L40S GPUs** (48 GB each), all shared by everyone through the Slurm scheduler. You log in, prepare your code and environment, and then ask Slurm to run the work through `sbatch` or `srun`. [Section 1.6](server.qmd#partitions) lists the full hardware.
+:::
+
+A handful of names and terms recur throughout this guide. The table below is a quick glossary.
+
+| Value | What it is |
+|:----------|:-------------------------------|
+| `naranjito.cunef.edu` | The hostname you connect to (by SSH, VS Code, or browser). |
+| `<username>` | Your CUNEF server user name. Replace it wherever it appears below. |
+| Partitions | `general` (batch jobs), `interactive`, `preemptible`: the Slurm queues you can submit to ([Section 1.6](server.qmd#partitions)). The older `short` and `long` still exist so that existing scripts keep working. |
+| Usage limits | How much of the server each user can hold, and for how long ([Section 1.7](server.qmd#usage-limits)). |
+| Hardware | One shared node: 192 CPU cores, 256 GB RAM, and 4 NVIDIA L40S GPUs ([Section 1.6](server.qmd#partitions)). |
+| `$HOME` | Your personal directory for code, scripts, and Conda environments. |
+
+**What Slurm, `sbatch`, and `srun` are.** Because `naranjito` is shared by many people at once, you do not start heavy programs on it directly. Instead a scheduler called *Slurm* hands out the machine's cores, memory, and GPUs fairly. You write a short description of the work you want done (e.g. how long it should run and how many resources it needs) and submit it to Slurm, which queues the request and starts it as soon as room is free. You submit in one of two ways: `sbatch` runs a script unattended in the background (the usual choice), while `srun` opens a live interactive session on the resources it grants you. Almost everything in this guide is about writing and submitting those job descriptions.
+
+::: {.callout-note title="Rule of thumb"}
+Use a plain login shell for editing files, installing small packages, moving data, and submitting jobs. Run real computation (models, simulations, notebooks, anything that uses serious CPU, RAM, or GPU time) through `sbatch` or `srun` so the scheduler can manage it. Do not launch heavy programs directly on the login shell.
 :::
 
 ## Citing this guide {.unnumbered .unlisted}
 
-::: {.cite-as}
 Naveiro, R. (2026). *CUNEF Server User Guide*. CUNEF Universidad. <https://cunef-hpc.github.io/>
-:::
 
 <details>
 <summary>BibTeX</summary>
@@ -102,4 +108,4 @@ Naveiro, R. (2026). *CUNEF Server User Guide*. CUNEF Universidad. <https://cunef
 
 ## About {.unnumbered .unlisted}
 
-This guide is written and maintained by [Roi Naveiro](https://roinaveiro.github.io/), Assistant Professor at CUNEF Universidad. It follows the practical structure of established university HPC documentation while adapting every example to `naranjito`. Corrections and suggestions are welcome through the [issue tracker](https://github.com/cunef-hpc/cunef-hpc.github.io/issues).
+This guide is written and maintained by [Roi Naveiro](https://roinaveiro.github.io/), Assistant Professor at CUNEF Universidad. Corrections and suggestions are welcome through the [issue tracker](https://github.com/cunef-hpc/cunef-hpc.github.io/issues).

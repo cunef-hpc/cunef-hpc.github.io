@@ -1,9 +1,8 @@
 ---
 title: "Quick Reference"
-description: "Commands, Slurm variables, and a script skeleton to copy."
 ---
 
-## Starter commands {#commands}
+## [3.1]{.secnum} Starter Commands {#commands}
 
 ```bash
 # Cluster status
@@ -22,7 +21,7 @@ sacct -j <jobid> --format=JobID,State,Elapsed,MaxRSS,ReqMem,AllocCPUS
 seff <jobid>
 ```
 
-## Slurm environment variables {#variables}
+## [3.2]{.secnum} Slurm Environment Variables {#variables}
 
 | Variable | Meaning |
 |:----------|:-------------------------------|
@@ -33,9 +32,9 @@ seff <jobid>
 | `$SLURM_ARRAY_TASK_ID` | Current array task index. Only set for job arrays. |
 | `$SLURM_SUBMIT_DIR` | Directory from which the job was submitted. |
 
-## Minimal script skeleton {#skeleton}
+## [3.3]{.secnum} Minimal Script Skeleton {#skeleton}
 
-```{.bash filename="job.slurm"}
+```bash
 #!/usr/bin/env bash
 #SBATCH --job-name=<name>
 #SBATCH --output=logs/%x-%j.out
@@ -55,7 +54,7 @@ conda activate <env-name>
 python script.py
 ```
 
-## Further reading {#references}
+## [4]{.secnum} References {#references}
 
 This guide follows the practical structure used by established university HPC documentation while adapting every example to the CUNEF `naranjito` server:
 

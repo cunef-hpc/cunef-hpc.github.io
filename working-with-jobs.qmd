@@ -1,23 +1,22 @@
 ---
 title: "Working with Jobs"
-description: "Choosing resources, monitoring and cancelling jobs, interactive sessions, and notebooks."
 ---
 
-## Choose reasonable resources {#resources}
+## [1.11]{.secnum} Choose Reasonable Resources {#resources}
 
 Slurm schedules jobs based on requested resources. If you ask for too little, your job can fail. If you ask for much more than you use, your job may wait longer and block other users.
 
 | Directive | Practical guidance |
 |:----------|:-------------------------------|
-| `--time` | Estimate runtime and add a buffer. Shorter jobs usually start sooner, and the time you request is what counts against your usage limits ([Usage limits](server.qmd#usage-limits)). |
+| `--time` | Estimate runtime and add a buffer. Shorter jobs usually start sooner, and the time you request is what counts against your usage limits ([Section 1.7](server.qmd#usage-limits)). |
 | `--mem` | Total memory for the job. Start with `2G`, `4G`, `8G`, etc. and inspect actual use. |
 | `--cpus-per-task` | Use for one program that can use multiple threads on one node. |
 | `--ntasks` | Use for MPI or multiple coordinated processes. Most Python/R scripts do not need this. |
 | `--partition` | Queue/resource class. Discover available partitions with `sinfo`. |
-| `--gres=gpu:1` | Request one GPU; `naranjito` has 4, available from every partition. In `general`, each user can hold at most 2 at once (1 GPU for up to 24 hours, or 2 for up to 12); `interactive` and `long` allow 1, and `preemptible` up to 4 ([Usage limits](server.qmd#usage-limits)). |
+| `--gres=gpu:1` | Request one GPU; `naranjito` has 4, available from every partition. In `general`, each user can hold at most 2 at once (1 GPU for up to 24 hours, or 2 for up to 12); `interactive` and `long` allow 1, and `preemptible` up to 4 ([Section 1.7](server.qmd#usage-limits)). |
 
 ::: {.callout-note title="The ceilings on one node"}
-Everything runs on a single node, of which Slurm can schedule **184 CPU cores**, about **212 GB** of RAM, and **4 GPUs**, and you share all of it with other users. Outside `preemptible`, you can hold at most **92 cores, 106 GB, and 2 GPUs** at once, and the more you hold, the shorter your jobs must be ([Usage limits](server.qmd#usage-limits)). Ask for a sensible fraction, not the whole machine!
+Everything runs on a single node, of which Slurm can schedule **184 CPU cores**, about **212 GB** of RAM, and **4 GPUs**, and you share all of it with other users. Outside `preemptible`, you can hold at most **92 cores, 106 GB, and 2 GPUs** at once, and the more you hold, the shorter your jobs must be ([Section 1.7](server.qmd#usage-limits)). Ask for a sensible fraction, not the whole machine!
 :::
 
 A few concrete headers for common situations:
@@ -42,13 +41,31 @@ A few concrete headers for common situations:
 #SBATCH --cpus-per-task=4
 ```
 
-How do you know whether you guessed right? After a job finishes, run `seff <jobid>` (or `sacct`, see [Monitor jobs](#monitor)). If it reports that you used, say, 3% of the memory you reserved, ask for less next time so your jobs start sooner and leave room for everyone else.
+How do you know whether you guessed right? After a job finishes, run `seff <jobid>` (or `sacct`, see [Section 1.14](#monitor)). If it reports that you used, say, 3% of the memory you reserved, ask for less next time so your jobs start sooner and leave room for everyone else.
 
 ::: {.callout-important title="Do not request cores unless your code uses them"}
 Many ordinary Python and R scripts run on one CPU core even if you request eight. Only request multiple cores when your code uses multiprocessing, multithreaded numeric libraries, OpenMP, PyTorch data loaders, R parallel backends, Stan chains, or similar tools.
 :::
 
-## A good default Python job template {#template}
+## [1.12]{.secnum} Check Live Status {#live-status}
+
+The partitions are described in [Section 1.6](server.qmd#partitions); these commands show their *current* state, meaning what is busy, free, or offline right now:
+
+```bash
+sinfo -o "%P %a %l %D %t %c %m %G"    # time limit, cores, memory, GPUs per partition
+scontrol show partition general       # full settings for one partition
+```
+
+The state column tells you whether you will start immediately:
+
+| State | Meaning |
+|:-------|:--------------------------------|
+| `idle` | Available now. |
+| `alloc` | Fully allocated to jobs. |
+| `mix` | Partly allocated; some resources may remain. |
+| `down` or `drain` | Not available for normal scheduling. |
+
+## [1.13]{.secnum} A Good Default Python Job Template {#template}
 
 ```{.bash filename="my-analysis.slurm"}
 #!/usr/bin/env bash
@@ -69,7 +86,7 @@ conda activate my_project
 python scripts/run_analysis.py --input data/input.csv --output results/output.csv
 ```
 
-This is the pattern to copy for real work. It uses the same skeleton as [the walkthrough](first-job.qmd#python-from-scratch) and adds a few habits worth keeping:
+This is the pattern to copy for real work. It uses the same skeleton as the [walkthrough above](first-job.qmd#python-from-scratch) and adds a few habits worth keeping:
 
 - `--output=logs/%x-%j.out` and `--error=logs/%x-%j.err` send normal output and errors to separate files under `logs/`; `%x` is the job name and `%j` the job ID, so runs never overwrite each other.
 - `mkdir -p logs` creates that folder first; Slurm does not make it for you, and a missing folder means the output is simply lost.
@@ -81,7 +98,7 @@ Submit:
 sbatch my-analysis.slurm
 ```
 
-## Monitor jobs {#monitor}
+## [1.14]{.secnum} Monitor Jobs {#monitor}
 
 While queued or running:
 
@@ -100,7 +117,7 @@ seff <jobid>
 
 Both `seff` and `sacct` are available on `naranjito` (job accounting is enabled through `slurmdbd`), so use whichever you prefer.
 
-## Cancel a job {#cancel}
+## [1.15]{.secnum} Cancel a Job {#cancel}
 
 Find the job ID and cancel it:
 
@@ -115,7 +132,7 @@ Cancel all of your jobs only when you really mean it:
 scancel -u $USER
 ```
 
-## Use an interactive session {#interactive}
+## [1.16]{.secnum} Use an Interactive Session {#interactive}
 
 Interactive sessions are useful for testing commands, installing packages, trying a notebook, or debugging. They still run on compute resources, so request only what you need.
 
@@ -129,11 +146,11 @@ This drops you into a shell running under the scheduler with the resources you a
 exit
 ```
 
-## Bonus: run notebooks inside VS Code {#notebooks}
+## [1.17]{.secnum} Bonus: Run Notebooks Inside VS Code {#notebooks}
 
 You can edit and run Jupyter notebooks directly in the VS Code editor on the server, with the output shown inline. No browser and no SSH tunnel are involved.
 
-1. Connect VS Code to the server with **Remote - SSH** ([Log in](getting-started.qmd#log-in)) and open your project folder.
+1. Connect VS Code to the server with **Remote - SSH** ([Section 1.1](getting-started.qmd#log-in)) and open your project folder.
 2. Once per environment, install the Jupyter kernel package:
 
     ```bash

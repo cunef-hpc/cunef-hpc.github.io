@@ -2,14 +2,14 @@
 
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap");
 
-// Palette: the CUNEF navy and orange of the PDF guide, on warm paper
+// Palette: the CUNEF navy and orange of the PDF guide, on white
 $cunef-navy:   #151F6C;
 $cunef-orange: #FF5700;
-$paper:        #FBFAF7;
+$paper:        #FFFFFF;
 $ink:          #24242C;
 $muted:        #6F6B63;
-$hairline:     #E3DED3;
-$wash:         #F3F0E9;
+$hairline:     #E6E3DD;
+$wash:         #F5F4F0;
 
 $primary:          $cunef-navy;
 $body-bg:          $paper;
@@ -59,7 +59,7 @@ body {
 // Interface text in the sans; reading text stays in the serif
 #quarto-sidebar, #TOC, #quarto-margin-sidebar, .nav-footer, .page-navigation,
 .callout-title-container, table, .quarto-title-meta, #quarto-search,
-.code-with-filename-file, .sidebar-byline, .overline, .byline, .group-label {
+.code-with-filename-file, .byline, .group-label, .toc-sections {
   font-family: $font-family-sans-serif;
 }
 
@@ -211,29 +211,12 @@ div.callout div.sourceCode { background: rgba(255, 255, 255, 0.6); }
 
 // ---------- Sidebar ----------
 #quarto-sidebar { border-right: 1px solid $hairline; }
-// Put the byline under the site title, not above it
-@media (min-width: 992px) {
-  #quarto-sidebar.docked { display: flex; flex-direction: column; }
-  #quarto-sidebar > .sidebar-header { order: 1; }
-  #quarto-sidebar > .quarto-sidebar-header { order: 2; }
-  #quarto-sidebar > :not(.sidebar-header):not(.quarto-sidebar-header) { order: 3; }
-}
-.quarto-sidebar-header .sidebar-header-item p { margin: 0.15rem 0 0; }
 .sidebar-title {
   font-family: $headings-font-family;
   font-size: 1.15rem;
   font-weight: 600;
   color: $cunef-navy;
 }
-.sidebar-header-item .sidebar-byline,
-a.sidebar-byline {
-  display: block;
-  margin-top: -0.35rem;
-  font-size: 0.8rem;
-  color: $muted;
-  text-decoration: none;
-}
-a.sidebar-byline:hover { color: $cunef-orange; }
 .sidebar-navigation .sidebar-item { font-size: 0.88rem; }
 .sidebar-navigation .sidebar-link { color: $ink; }
 .sidebar-navigation .sidebar-link.active { color: $cunef-orange; font-weight: 500; }
@@ -266,25 +249,36 @@ a.sidebar-byline:hover { color: $cunef-orange; }
 .nav-footer a:hover { color: $cunef-orange; }
 .page-navigation { border-top: 1px solid $hairline; padding-top: 0.9rem; font-size: 0.9rem; }
 
+// ---------- Section numbers, as in the PDF ----------
+.secnum {
+  color: $cunef-orange;
+  font-weight: 400;
+  margin-right: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+#TOC .secnum { color: inherit; margin-right: 0; }
+
+// ---------- Sidebar logo ----------
+#quarto-sidebar .sidebar-logo {
+  max-width: 132px;
+  height: auto;
+  margin: 0.6rem 0 0.4rem;
+}
+
 // ---------- Home page ----------
 .home-header {
   margin: 0.5rem 0 2.2rem;
   padding-bottom: 1.5rem;
   border-bottom: 1px solid $cunef-orange;
 }
-.overline {
-  display: block;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: $cunef-orange;
-}
+// The sidebar shows the logo on wide screens; narrow screens hide the sidebar
+.home-logo { display: none; width: 150px; height: auto; margin: 0 0 1.4rem; }
+@media (max-width: 991.98px) { .home-logo { display: block; } }
 h1.home-title {
   font-size: clamp(2.3rem, 5.2vw, 3.3rem);
   line-height: 1.06;
   letter-spacing: -0.022em;
-  margin: 0.7rem 0 0.7rem;
+  margin: 0 0 0.7rem;
 }
 .home-subtitle {
   display: block;
@@ -299,61 +293,36 @@ h1.home-title {
   line-height: 1.7;
 }
 .byline p { margin: 0; }
+.byline p + p { margin-top: 0.7rem; }
 .byline a.author {
   color: $cunef-navy;
   font-weight: 600;
   text-decoration: none !important;
 }
 
-.specs dl {
-  display: grid;
-  grid-template-columns: 7.5rem 1fr;
-  gap: 0.4rem 1.2rem;
-  margin: 1.6rem 0 1.8rem;
-  padding: 1rem 0;
-  border-top: 1px solid $hairline;
-  border-bottom: 1px solid $hairline;
-}
-.specs dt {
-  font-family: $font-family-sans-serif;
+.part-title {
+  font-family: $headings-font-family;
+  font-size: 1.25rem;
   font-weight: 600;
-  font-size: 0.8rem;
   color: $cunef-navy;
-  padding-top: 0.2rem;
+  margin: 2rem 0 0.4rem;
 }
-.specs dd { margin: 0; }
-@media (max-width: 575.98px) {
-  .specs dl { grid-template-columns: 1fr; gap: 0 0; }
-  .specs dd { margin-bottom: 0.55rem; }
-}
-
-.contents-list ol { padding-left: 1.6rem; margin-bottom: 1.6rem; }
-.contents-list li { margin-bottom: 0.75rem; padding-left: 0.2rem; }
-.contents-list li::marker {
-  font-family: $font-family-sans-serif;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: $cunef-orange;
-}
+.contents-list ul { list-style: none; padding-left: 0; margin: 0.9rem 0 1.2rem; }
+.contents-list li { margin-bottom: 0.85rem; }
+.contents-list li > p { margin: 0; }
 .contents-list li > p > a:first-child,
 .contents-list li > a:first-child {
-  font-size: 1.06rem;
+  font-size: 1.04rem;
   font-weight: 600;
   text-decoration: none !important;
 }
-.contents-list .desc { display: block; color: $muted; font-size: 0.95rem; }
-.group-label {
-  margin-top: 1.8rem;
-  font-size: 0.88rem;
+.toc-sections {
+  display: block;
   color: $muted;
+  font-size: 0.82rem;
+  line-height: 1.65;
 }
-.group-label strong {
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  font-size: 0.7rem;
-  color: $cunef-navy;
-  margin-right: 0.35rem;
-}
+.toc-sections .secnum { margin-right: 0; }
 .cite-as {
   padding-left: 1.2rem;
   text-indent: -1.2rem;

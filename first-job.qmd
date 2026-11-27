@@ -1,19 +1,8 @@
 ---
 title: "Your First Job"
-description: "A first batch job, then a complete Python project with Conda or uv."
 ---
 
-## The five Slurm commands you need first {#five-commands}
-
-| Command | What it does |
-|:----------|:-------------------------------|
-| `sinfo` | Shows partitions, nodes, and whether resources are idle, allocated, or down. |
-| `sbatch job.sh` | Submits a batch job script. This is the normal way to run work. |
-| `squeue -u $USER` | Shows your queued and running jobs. |
-| `scancel <jobid>` | Cancels a job. |
-| `sacct` or `seff <jobid>` | Shows accounting and efficiency information after a job finishes ([Monitor jobs](working-with-jobs.qmd#monitor)). |
-
-## Run your first job {#first-job}
+## [1.8]{.secnum} Run Your First Job {#first-job}
 
 Create a file named `hello.slurm`:
 
@@ -38,7 +27,7 @@ Every batch script has the same shape: the `#!/usr/bin/env bash` line, a block o
 |:----------|:-------------------------------|
 | `--job-name=hello` | A label shown in `squeue`. |
 | `--output=hello-%j.out` | File for the job's printed output; `%j` is replaced by the job ID, so each run gets its own file. |
-| `--partition=general` | Which queue to run in (see [Partitions](server.qmd#partitions)). |
+| `--partition=general` | Which queue to run in (see [Section 1.6](server.qmd#partitions)). |
 | `--time=00:02:00` | Maximum wall-clock time (HH:MM:SS). Slurm stops the job if it runs longer. |
 | `--mem=1G` | Total RAM reserved for the job. |
 | `--cpus-per-task=1` | How many CPU cores to reserve. |
@@ -58,7 +47,7 @@ The `*` in `hello-*.out` is a shell *wildcard*: it stands for "any characters he
 
 If you omit `--partition`, the job runs in the default `interactive` partition, which stops jobs after 8 hours. For batch work, set `--partition=general`.
 
-## A complete example: run Python from scratch {#python-from-scratch}
+## [1.9]{.secnum} A Complete Example: Run Python from Scratch {#python-from-scratch}
 
 This is the whole workflow end to end to install and run a Python job: install a Python distribution, create an isolated environment with the packages you need, write a small program, and run it as a Slurm job. Every command is included; do it once and the pattern repeats for every project.
 
@@ -112,7 +101,7 @@ print("wrote summary.csv")
 
 ### Step 4: Write the Slurm job script
 
-Save this as `~/slurm-test/run_analysis.slurm`. Notice that it activates the *same* environment before running Python, since a job does not inherit whatever environment is active in your shell.
+Save this as `~/slurm-test/run_analysis.slurm`. Notice that it activates the *same* environment before running Python, since a job does not inherit whatever environment is active in your shell:
 
 In the job script below, the `set -euo pipefail` line is a safety net: it tells bash to stop immediately if any command fails (`-e`), if it uses a variable that was never set (`-u`), or if any stage of a pipeline fails (`-o pipefail`). Without it, a job can sail past a broken step and quietly produce a half-finished result.
 
@@ -146,7 +135,7 @@ cat summary.csv               # the file the script wrote
 
 That is the full loop. For any new project you repeat Steps 2–5: a fresh environment, your code, a job script that activates that environment, and `sbatch`.
 
-## A lightweight alternative: uv instead of Miniforge {#uv}
+## [1.10]{.secnum} A Lightweight Alternative: uv Instead of Miniforge {#uv}
 
 Miniforge is not the only way to get Python environments on `naranjito`. **uv** is a free, open-source tool that handles Python installation, environments and PyPI packages. It is one self-contained program in your home directory, needs no admin rights, and is usually much faster than Conda. Each environment is an ordinary folder, by default called `.venv` and kept inside the project folder it belongs to.
 

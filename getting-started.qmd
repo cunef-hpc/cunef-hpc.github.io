@@ -1,28 +1,8 @@
 ---
 title: "Getting Started"
-description: "What Slurm is, how to log in, and how to move files to and from the server."
 ---
 
-A handful of names and terms recur throughout this guide. The table below is a quick glossary.
-
-| Value | What it is |
-|:----------|:-------------------------------|
-| `naranjito.cunef.edu` | The hostname you connect to (by SSH, VS Code, or browser). |
-| `<username>` | Your CUNEF server user name. Replace it wherever it appears below. |
-| Partitions | `general` (batch jobs), `interactive`, `preemptible`: the Slurm queues you can submit to ([Partitions](server.qmd#partitions)). The older `short` and `long` still exist so that existing scripts keep working. |
-| Usage limits | How much of the server each user can hold, and for how long ([Usage limits](server.qmd#usage-limits)). |
-| Hardware | One shared node: 192 CPU cores, 256 GB RAM, and 4 NVIDIA L40S GPUs ([Hardware](server.qmd#hardware)). |
-| `$HOME` | Your personal directory for code, scripts, and Conda environments. |
-
-## What Slurm, `sbatch`, and `srun` are {#slurm}
-
-Because `naranjito` is shared by many people at once, you do not start heavy programs on it directly. Instead a scheduler called *Slurm* hands out the machine's cores, memory, and GPUs fairly. You write a short description of the work you want done (e.g. how long it should run and how many resources it needs) and submit it to Slurm, which queues the request and starts it as soon as room is free. You submit in one of two ways: `sbatch` runs a script unattended in the background (the usual choice), while `srun` opens a live interactive session on the resources it grants you. Almost everything in this guide is about writing and submitting those job descriptions.
-
-::: {.callout-note title="Rule of thumb"}
-Use a plain login shell for editing files, installing small packages, moving data, and submitting jobs. Run real computation (models, simulations, notebooks, anything that uses serious CPU, RAM, or GPU time) through `sbatch` or `srun` so the scheduler can manage it. Do not launch heavy programs directly on the login shell.
-:::
-
-## Log in {#log-in}
+## [1.1]{.secnum} Log In {#log-in}
 
 There are (at least) three ways to reach `naranjito.cunef.edu`. All of them ask for your CUNEF server user name and password.
 
@@ -60,9 +40,13 @@ Editing and light terminal commands in VS Code are fine, but still launch real c
 
 ### 3. A web browser (nothing to install)
 
-If you cannot use a terminal or VS Code, open <https://naranjito.cunef.edu:9090/> in any browser and log in with your server user name and password. This is the server's web console (Cockpit); it gives you an in-browser **Terminal** and a file manager. Your browser may warn about the security certificate the first time; accept it only if the address matches the one above. This is the handiest option from a locked-down or borrowed computer.
+If you cannot use a terminal or VS Code, open
 
-## Find your way around {#find-your-way}
+<https://naranjito.cunef.edu:9090/>
+
+in any browser and log in with your server user name and password. This is the server's web console (Cockpit); it gives you an in-browser **Terminal** and a file manager. Your browser may warn about the security certificate the first time; accept it only if the address matches the one above. This is the handiest option from a locked-down or borrowed computer.
+
+## [1.2]{.secnum} Find Your Way Around {#find-your-way}
 
 Once you are logged in you are at a shell prompt. A handful of commands cover almost everything you do day to day:
 
@@ -93,7 +77,7 @@ ls          # what is in it
 passwd
 ```
 
-## Know where you are working {#where}
+## [1.3]{.secnum} Know Where You Are Working {#where}
 
 Almost everything you own lives under your home directory, `$HOME` (typically `/home/<username>`): your code, scripts, and Conda environments. Keep it reasonably tidy and avoid filling it with huge temporary files. If your research group has shared storage, CUNEF IT will give you the path; otherwise keep your data in a folder under `$HOME`.
 
@@ -104,7 +88,7 @@ mkdir -p ~/slurm-test
 cd ~/slurm-test
 ```
 
-## Copy files to and from the server {#copy-files}
+## [1.4]{.secnum} Copy Files To and From the Server {#copy-files}
 
 You move files between your own computer and the server with two standard tools: `scp` (*secure copy*: it copies a single file, or a whole folder with `-r`, over SSH) and `rsync` (synchronises folders, sending only what has changed). Run them from your laptop, not from inside the server.
 

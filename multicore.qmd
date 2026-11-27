@@ -1,9 +1,8 @@
 ---
 title: "Multi-Core and Long Jobs"
-description: "Use several cores correctly, and make long jobs restartable."
 ---
 
-## Multi-core jobs {#multicore}
+## [2.5]{.secnum} Multi-Core Jobs {#multicore}
 
 Many programs can use several CPU cores at once *within a single process*: NumPy and SciPy (through MKL or OpenBLAS), scikit-learn with `n_jobs`, PyTorch's CPU operations, or anything built on OpenMP. To use them well there are two separate things to get right, and people usually do only the first.
 
@@ -11,7 +10,7 @@ Many programs can use several CPU cores at once *within a single process*: NumPy
 
 **2. Tell the libraries how many cores to use.** Left to themselves, math libraries detect *all 192 cores* on `naranjito` and try to use them, even though Slurm only handed your job a few. That oversubscription makes your job *slower*, not faster, and steals time from everyone else. The fix is to cap the thread count at exactly the cores Slurm gave you, which it exposes in `$SLURM_CPUS_PER_TASK`:
 
-```{.bash filename="multicore.slurm"}
+```bash
 #!/usr/bin/env bash
 #SBATCH --job-name=multicore
 #SBATCH --output=logs/%x-%j.out
@@ -41,7 +40,7 @@ module load openmpi
 mpirun -np ${SLURM_NTASKS} ./my_mpi_program
 ```
 
-## Checkpoint long jobs {#checkpoint}
+## [2.6]{.secnum} Checkpoint Long Jobs {#checkpoint}
 
 Long jobs should save intermediate state periodically. This matters most in `preemptible`, where a job can be killed and restarted from the beginning at any time. Do this in your application when possible:
 
